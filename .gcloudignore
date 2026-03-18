@@ -1,0 +1,39 @@
+# Add .gcloudignore file to speed up cloud build job deployment.
+# Ignore Python virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Ignore Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Ignore Terraform state and temp files
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/.terraform.lock.hcl
+
+# Ignore IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Ignore git
+.git/
+.gitignore
+
+# Ignore documentation and notes
+*.md
+!README.md
+
+# Ignore local scripts
+deploy.sh
+
+.adk/
