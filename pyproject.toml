@@ -1,0 +1,21 @@
+[project]
+name = "user-info-agent"
+version = "0.1.0"
+description = "An ADK agent that consumes an MCP server deployed on Cloud Run using end user authentication registered with Gemini Enterprise."
+requires-python = ">=3.12"
+dependencies = [
+    "fastmcp==2.13.1",
+    "google-adk>=1.20.0",
+    "python-dotenv>=1.0.0",
+    "google-auth>=2.30.0",
+]
+
+[tool.uv]
+package = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["agent_engine", "local"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
