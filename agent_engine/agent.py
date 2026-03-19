@@ -4,18 +4,15 @@ import json
 import logging
 import requests
 from pathlib import Path
-from typing import Tuple, Optional, Dict, Any
+from typing import Optional, Dict, Any
 from google.api_core.exceptions import InvalidArgument
 
 from google.adk.agents import LlmAgent
 from google.adk.tools import ToolContext
 from google.adk.tools.base_tool import BaseTool
-from google.adk.auth import AuthConfig
-from google.genai.types import Part
 
 import google.auth
 import google.auth.transport.requests
-from google.oauth2.credentials import Credentials
 
 from .ontology_compiler import OntologyCompiler
 
