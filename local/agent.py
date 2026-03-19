@@ -11,13 +11,15 @@ from google.adk.agents.readonly_context import ReadonlyContext
 from google.adk.tools import ToolContext
 
 from google.adk.auth import AuthConfig, AuthCredential, AuthCredentialTypes, OAuth2Auth
-from langchain_google_spanner import SpannerGraphStore
-from google.cloud import spanner
-from .ontology_compiler import OntologyCompiler
 
-import requests
 import google.auth
 import google.auth.transport.requests
+
+from .ontology_compiler import OntologyCompiler
+from langchain_google_spanner import SpannerGraphStore
+from google.cloud import spanner
+
+import requests
 from dotenv import load_dotenv
 
 # Load environment variables from the same directory as this file
@@ -27,6 +29,7 @@ load_dotenv(dotenv_path=env_path)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
 
+GOOGLE_CLOUD_PROJECT = os.getenv("GOOGLE_CLOUD_PROJECT")
 CLIENT_ID = os.getenv("CLIENT_ID")
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
 SPANNER_INSTANCE_ID = os.getenv("SPANNER_INSTANCE_ID")
@@ -43,14 +46,16 @@ credentials, _ = google.auth.default()
 
 request = google.auth.transport.requests.Request()
 credentials.refresh(request)
-logger.info(f"Obtained access token for Spanner authentication: {credentials}...")
+logger.info(f"Obtained access token for Spanner authentication: {credentials.token}...")
+
+spanner_client = spanner.Client(project=GOOGLE_CLOUD_PROJECT)
 
 # Connect to Spanner
 graph_store = SpannerGraphStore(
     instance_id=SPANNER_INSTANCE_ID,
     database_id=SPANNER_DATABASE_ID,
     graph_name=SPANNER_GRAPH_NAME,
-    client=spanner.Client(credentials=credentials)
+    client=spanner_client
 )
 physical_schema = graph_store.get_schema
 
@@ -108,12 +113,12 @@ auth_config = AuthConfig(
     auth_credential=auth_credential
 )
 
-def get_user_info(tool_context: ToolContext) -> dict | None:
+def get_user_info(tool_context: ToolContext) -> str | None:
     """
     Retrieves user information based on the access token in the session.
     Returns a dictionary with user info or None if no valid token is found.
     """
-    auth_response = tool_context.get_auth_response(auth_config=auth_config)
+    auth_response = tool_context.request_credential(auth_config=auth_config)
     access_token = auth_response.get("access_token") if auth_response else None
 
     if not access_token:
@@ -133,41 +138,6 @@ def get_user_info(tool_context: ToolContext) -> dict | None:
     except requests.RequestException as e:
         logger.error(f">>> 🛠️ Tool: Failed to retrieve user info: {str(e)}")
         return None
-
-# def get_access_token(readonly_context: ReadonlyContext) -> str | None:
-
-#     if hasattr(readonly_context, "session") and hasattr(readonly_context.session, "state"):
-#         session_state = dict(readonly_context.session.state)
-#         logger.info(f"session state keys: {list(session_state.keys())}")
-        
-#         for key, value in session_state.items():
-#             logger.info(f"Inspecting session state \n key: {key}, \n value: {value}, \n type: {type(value)}")
-
-#             # Check for AuthCredential object with OpenID Connect [:10]
-#             if isinstance(value, AuthCredential) and value.auth_type == AuthCredentialTypes.OPEN_ID_CONNECT and value.oauth2:
-#                 if value.oauth2.access_token:
-#                     logger.info(f"\n\nFound access_token in AuthCredential object in session state key: \n   * key: {key} \n   * token: {value.oauth2.access_token}\n\n")
-#                     return value.oauth2.access_token
-
-#             # Direct string token check
-#             if isinstance(value, str) and (value.startswith("eyJ") or value.startswith("ya29.")):
-#                 # Log only the beginning of the token for security
-#                 logger.info(f"Found token in session state key: {key}, token: {value[:10]}...") 
-#                 return value
-            
-#             # Dictionary check for nested tokens (e.g., in case of a more complex session structure)
-#             if isinstance(value, dict):
-#                 if "access_token" in value:
-#                     token = value["access_token"]
-#                     if isinstance(token, str) and (token.startswith("eyJ") or token.startswith("ya29.")):
-#                         logger.info(f"Found nested token in key: {key}, token: {token[:10]}...")
-#                         return token
-#                 else:
-#                     # print dictionary keys
-#                     logger.info(f"Inspecting dict key '{key}': {list(value.keys())}")
-
-#     logger.info("No token found in session state.")
-#     return None
 
 system_prompt = f"""
 You are TeamAgent, an expert HR and Staffing assistant.
