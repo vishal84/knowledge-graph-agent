@@ -36,7 +36,7 @@ CLIENT_SECRET = os.getenv("CLIENT_SECRET")
 SPANNER_INSTANCE_ID = os.getenv("SPANNER_INSTANCE_ID")
 SPANNER_DATABASE_ID = os.getenv("SPANNER_DATABASE_ID")
 SPANNER_GRAPH_NAME = (os.getenv("SPANNER_GRAPH_NAME") or "").strip() or "TeamAgent"
-CURRENT_USER_EMAIL_PLACEHOLDER = "{current_user_email}"
+CURRENT_USER_EMAIL_PLACEHOLDER = {current_user_email}
 
 # ==========================================
 # 2. SETUP ONTOLOGY & SCHEMA
@@ -48,7 +48,7 @@ ontology_summary = ontology_compiler.compile_summary()
 credentials, _ = google.auth.default()
 request = google.auth.transport.requests.Request()
 credentials.refresh(request)
-logger.info(f"Obtained access token for Spanner authentication: {credentials.token}...")
+logger.info(f"Obtained access token for Spanner authentication: {credentials.get_cred_info}...")
 
 spanner_client = spanner.Client(project=GOOGLE_CLOUD_PROJECT, credentials=credentials)
 
