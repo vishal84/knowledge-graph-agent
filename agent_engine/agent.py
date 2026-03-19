@@ -4,11 +4,12 @@ import json
 import logging
 import requests
 from pathlib import Path
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Dict, Any
 from google.api_core.exceptions import InvalidArgument
 
 from google.adk.agents import LlmAgent
 from google.adk.tools import ToolContext
+from google.adk.tools.base_tool import BaseTool
 from google.adk.auth import AuthConfig
 from google.genai.types import Part
 
@@ -44,6 +45,27 @@ SPANNER_DISABLE_BUILTIN_METRICS = os.getenv("SPANNER_DISABLE_BUILTIN_METRICS")
 
 USER_NAME_PLACEHOLDER = "user_name"
 
+DYNAMIC_AUTH_PARAM_NAME = "dynamic_auth_config" # Name of the parameter to inject
+DYNAMIC_AUTH_INTERNAL_KEY = "oauth2_auth_code_flow.access_token" # Internal key for the token
+
+def dynamic_token_injection(tool: BaseTool, args: Dict[str, Any], tool_context: ToolContext) -> Optional[Dict]:
+    token_key = None
+    pattern = re.compile(f'' + AUTH_ID + '.*')
+
+    state_dict = tool_context.state.to_dict()
+    matched_auth = {key: value for key, value in state_dict.items() if pattern.match(key)}
+    if len(matched_auth) > 0:
+        token_key = list(matched_auth.keys())[0]
+    else:
+        logger.info("No valid tokens found")
+        return None
+    
+    access_token = tool_context.state[token_key]
+    tool_context.state[AUTH_ID] = access_token
+    logger.info(f"Token injected into tool context state under key '{AUTH_ID}': {access_token}'")
+
+    return None
+
 # ==========================================
 # 2. SETUP ONTOLOGY & SCHEMA
 # ==========================================
@@ -73,7 +95,6 @@ graph_store = SpannerGraphStore(
     client=spanner_client
 )
 physical_schema = graph_store.get_schema
-
 
 def _run_gql_query(query: str) -> dict:
     logger.info(f">>> 🛠️ Tool: Query sent to Spanner Graph:\n{query}")
@@ -166,54 +187,17 @@ def execute_gql(query: str) -> dict:
 # ==========================================
 # 4. DEFINE THE TOOL FOR USER INFO RETRIEVAL
 # ==========================================
-def _get_credentials_or_auth_request(
-    tool_context: ToolContext, pending_message: str
-) -> Tuple[Optional[Credentials], Optional[str]]:
-    """
-    A helper function to abstract the credential fetching logic.
-
-    It checks for necessary environment variables and then calls get_user_credentials.
-    It returns credentials on success, or an error/pending message on failure or if auth is needed.
-
-    Args:
-        tool_context: The context of the tool run.
-        pending_message: The message to return if authentication is required.
-
-    Returns:
-        A tuple containing Credentials and an optional message.
-        (Credentials, None) on success.
-        (None, message) on failure or if auth is pending.
-    """
-    logger.info("Attempting to retrieve user credentials for authentication...")
-
-    creds = get_user_credentials(
-        tool_context=tool_context,
-        credential_cache_key="graph_creds"
-    )
-
-    if isinstance(creds, AuthConfig) or creds is None:
-        return None, pending_message
-    
-    return creds, None
-
 def execute_gql_for_current_user(query: str, tool_context: ToolContext) -> dict:
     """
     Runs a GQL query that is scoped to the signed-in user.
     The query must include the literal placeholder user_name,
     which will be replaced with the authenticated user's formatted name.
     """
-    creds, message = _get_credentials_or_auth_request(
-        tool_context,
-        "To proceed, sign in with your Google account first."
-    )
-    logger.info(f"Credentials obtained: {creds}, Message: {message}")
-    if message:
-        tool_context.actions.skip_summarization = True
-        return Part.from_text(text=message)
+    token = tool_context.state.get(AUTH_ID)
     
     # At this point, we have valid credentials. Make the API call.
     userinfo_endpoint = "https://www.googleapis.com/oauth2/v3/userinfo"
-    headers = {"Authorization": f"Bearer {creds.token}"}
+    headers = {"Authorization": f"Bearer {token}"}
     
     try:
         response = requests.get(userinfo_endpoint, headers=headers)
