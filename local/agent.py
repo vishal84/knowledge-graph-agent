@@ -220,7 +220,7 @@ If a user asks about themselves (for example: "who am i", "me", "my", "myself", 
 you MUST use 'execute_gql_for_current_user' instead of 'execute_gql'.
 When using 'execute_gql_for_current_user', include {CURRENT_USER_EMAIL_PLACEHOLDER} in the GQL predicate where email is needed.
 Map authenticated email to graph field: Person.cloudEmailAddress.
-If a query fails, read the error, rewrite the GQL, and try again.
+If a query fails, read the error, rewrite the GQL, and try again. Do not provide a response when running a query again.
 
 Example pattern:
 GRAPH {SPANNER_GRAPH_NAME} MATCH (p:Person) WHERE p.cloudEmailAddress = '{CURRENT_USER_EMAIL_PLACEHOLDER}' RETURN p
