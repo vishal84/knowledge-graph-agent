@@ -1,25 +1,26 @@
 import os
+import re
+import json
 import logging
+import requests
 from pathlib import Path
-
-from fastapi.openapi.models import OAuth2
-from fastapi.openapi.models import OAuthFlowAuthorizationCode
-from fastapi.openapi.models import OAuthFlows
+from typing import Tuple, Optional
+from google.api_core.exceptions import InvalidArgument
 
 from google.adk.agents import LlmAgent
-from google.adk.agents.readonly_context import ReadonlyContext
 from google.adk.tools import ToolContext
-
-from google.adk.auth import AuthConfig, AuthCredential, AuthCredentialTypes, OAuth2Auth
+from google.adk.auth import AuthConfig
 
 import google.auth
 import google.auth.transport.requests
+from google.oauth2.credentials import Credentials
 
 from .ontology_compiler import OntologyCompiler
+from .oauth_helper import get_user_credentials
+
 from langchain_google_spanner import SpannerGraphStore
 from google.cloud import spanner
 
-import requests
 from dotenv import load_dotenv
 
 # Load environment variables from the same directory as this file
@@ -29,12 +30,18 @@ load_dotenv(dotenv_path=env_path)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
 
+# Project Settings
 GOOGLE_CLOUD_PROJECT = os.getenv("GOOGLE_CLOUD_PROJECT")
 CLIENT_ID = os.getenv("CLIENT_ID")
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
+
+# Spanner Config
 SPANNER_INSTANCE_ID = os.getenv("SPANNER_INSTANCE_ID")
 SPANNER_DATABASE_ID = os.getenv("SPANNER_DATABASE_ID")
 SPANNER_GRAPH_NAME = os.getenv("SPANNER_GRAPH_NAME")
+SPANNER_DISABLE_BUILTIN_METRICS = os.getenv("SPANNER_DISABLE_BUILTIN_METRICS")
+
+USER_NAME_PLACEHOLDER = "user_name"
 
 # ==========================================
 # 2. SETUP ONTOLOGY & SCHEMA
@@ -42,13 +49,20 @@ SPANNER_GRAPH_NAME = os.getenv("SPANNER_GRAPH_NAME")
 ontology_compiler = OntologyCompiler(Path(__file__).parent.parent / 'ontology_file.ttl')
 ontology_summary = ontology_compiler.compile_summary()
 
+# Get user credentails for Spanner access
 credentials, _ = google.auth.default()
-
 request = google.auth.transport.requests.Request()
 credentials.refresh(request)
 logger.info(f"Obtained access token for Spanner authentication: {credentials.token}...")
 
-spanner_client = spanner.Client(project=GOOGLE_CLOUD_PROJECT)
+if SPANNER_DISABLE_BUILTIN_METRICS:
+    os.environ["SPANNER_DISABLE_BUILTIN_METRICS"] = "true"
+
+spanner_client = spanner.Client(
+    project=GOOGLE_CLOUD_PROJECT,
+    credentials=credentials,
+    disable_builtin_metrics=SPANNER_DISABLE_BUILTIN_METRICS,
+)
 
 # Connect to Spanner
 graph_store = SpannerGraphStore(
@@ -59,74 +73,145 @@ graph_store = SpannerGraphStore(
 )
 physical_schema = graph_store.get_schema
 
+
+def _run_gql_query(query: str) -> dict:
+    logger.info(f">>> 🛠️ Tool: Query sent to Spanner Graph:\n{query}")
+    results = graph_store.query(query)
+    if not results:
+        return {"status": "success", "result": "Query returned no rows."}
+
+    return {"status": "success", "result": json.dumps(results, indent=2)}
+
 # ==========================================
 # 3. DEFINE THE TOOL
 # ==========================================
 def execute_gql(query: str) -> dict:
     """
     Executes a Spanner GQL query against the database.
-    Input must be a valid GQL string starting with 'GRAPH AgentXGraph MATCH...'.
-    Returns the query results or an error message if the syntax is wrong.
+    Input must be a valid GQL string.
+    Returns the query results as a JSON string or an error message.
     """
-    print(f"\n[Tool Execution] Running GQL:\n{query}\n")
+    logger.info(f"\n[Tool Execution] Running GQL:\n{query}\n")
+
+    if not SPANNER_GRAPH_NAME:
+        return {
+            "status": "error",
+            "message": "Spanner graph name is not configured. Set SPANNER_GRAPH_NAME.",
+        }
+
+    normalized_query = query.strip()
+
+    # Spanner GQL doesn't support Cypher's COLLECT().
+    # Convert COLLECT(expr) to expr so generated queries remain executable.
+    if re.search(r"\bCOLLECT\s*\(", normalized_query, flags=re.IGNORECASE):
+        query = re.sub(
+            r"\bCOLLECT\s*\(\s*([^)]+?)\s*\)",
+            r"\1",
+            normalized_query,
+            flags=re.IGNORECASE,
+        )
+        normalized_query = query.strip()
+        logger.info(
+            "[Tool Execution] Rewrote unsupported COLLECT(...) expression for Spanner GQL."
+        )
+
+    # --- 1. Input Validation ---
+    # Enforce that the query is a valid GQL query for this graph.
+    # This provides a faster, clearer error to the LLM if it generates a bad query.
+    valid_prefix_pattern = rf"^GRAPH\s+{re.escape(SPANNER_GRAPH_NAME)}\s+MATCH\b"
+    if not re.match(valid_prefix_pattern, normalized_query, flags=re.IGNORECASE):
+        # Allow MATCH-only queries by auto-prefixing the active graph.
+        if re.match(r"^MATCH\b", normalized_query, flags=re.IGNORECASE):
+            query = f"GRAPH {SPANNER_GRAPH_NAME} {normalized_query}"
+            logger.info(
+                "[Tool Execution] Auto-prefixed MATCH query with active graph name."
+            )
+        else:
+            return {
+                "status": "error",
+                "message": f"Invalid GQL format. Query MUST start with 'GRAPH {SPANNER_GRAPH_NAME} MATCH ...'"
+            }
+
     try:
-        results = graph_store.query(query)
-        if not results:
-            return {"status": "success", "result": "Query returned no rows."}
+        # --- 2. Query Execution ---
+        # --- 3. Structured Result Formatting ---
+        # Return results as a JSON string for better machine readability by the LLM.
+        # This preserves the structure of the data (lists of dictionaries).
+        return _run_gql_query(query)
 
-        output = [str(row) for row in results]
-        return {"status": "success", "result": "\n".join(output)}
-
+    # --- 4. Specific Error Handling ---
+    # Catch specific API errors for more granular feedback.
+    except InvalidArgument as e:
+        # This error often indicates a syntax problem in the GQL itself.
+        details = str(e)
+        if "Function not found: COLLECT" in details:
+            return {
+                "status": "error",
+                "message": (
+                    "GQL Syntax Error: COLLECT(...) is not supported in Spanner GQL. "
+                    "Return scalar rows (for example s.skillName) and aggregate in the final response. "
+                    f"Details: {details}"
+                ),
+            }
+        return {
+            "status": "error",
+            "message": f"GQL Syntax Error: The query is malformed. Please check the GQL syntax. Details: {details}"
+        }
     except Exception as e:
-        return {"status": "error", "message": f"GQL Error: {str(e)}"}
+        # Catch-all for other unexpected database or connection errors.
+        logger.error(f"An unexpected error occurred during GQL execution: {e}", exc_info=True)
+        return {"status": "error", "message": f"An unexpected error occurred: {str(e)}"}
     
 # ==========================================
 # 4. DEFINE THE TOOL FOR USER INFO RETRIEVAL
 # ==========================================
-auth_scheme = OAuth2(
-    flows=OAuthFlows(
-        authorizationCode=OAuthFlowAuthorizationCode(
-            authorizationUrl="https://accounts.google.com/o/oauth2/auth",
-            tokenUrl="https://oauth2.googleapis.com/token",
-            refreshUrl="https://oauth2.googleapis.com/token",
-            scopes={
-                "https://www.googleapis.com/auth/cloud-platform": "Cloud platform scope",
-                "https://www.googleapis.com/auth/userinfo.email": "Email access scope",
-                "https://www.googleapis.com/auth/userinfo.profile": "Profile access scope",
-                "openid": "OpenID Connect scope",
-            },
-        )
+def _get_credentials_or_auth_request(
+    tool_context: ToolContext, pending_message: str
+) -> Tuple[Optional[Credentials], Optional[str]]:
+    """
+    A helper function to abstract the credential fetching logic.
+
+    It checks for necessary environment variables and then calls get_user_credentials.
+    It returns credentials on success, or an error/pending message on failure or if auth is needed.
+
+    Args:
+        tool_context: The context of the tool run.
+        pending_message: The message to return if authentication is required.
+
+    Returns:
+        A tuple containing Credentials and an optional message.
+        (Credentials, None) on success.
+        (None, message) on failure or if auth is pending.
+    """
+    logger.info("Attempting to retrieve user credentials for authentication...")
+
+    creds = get_user_credentials(
+        tool_context=tool_context,
+        credential_cache_key="graph_creds"
     )
-)
 
-auth_credential = AuthCredential(
-    auth_type=AuthCredentialTypes.OPEN_ID_CONNECT,
-    oauth2=OAuth2Auth(
-        client_id=CLIENT_ID, 
-        client_secret=CLIENT_SECRET,
-        redirect_uri="http://127.0.0.1:8000/dev-ui/",
-    ),
-)
+    if isinstance(creds, AuthConfig) or creds is None:
+        return None, pending_message
+    
+    return creds, None
 
-auth_config = AuthConfig(
-    auth_scheme=auth_scheme,
-    auth_credential=auth_credential
-)
-
-def get_user_info(tool_context: ToolContext) -> str | None:
+def execute_gql_for_current_user(query: str, tool_context: ToolContext) -> dict:
     """
-    Retrieves user information based on the access token in the session.
-    Returns a dictionary with user info or None if no valid token is found.
+    Runs a GQL query that is scoped to the signed-in user.
+    The query must include the literal placeholder user_name,
+    which will be replaced with the authenticated user's formatted name.
     """
-    auth_response = tool_context.request_credential(auth_config=auth_config)
-    access_token = auth_response.get("access_token") if auth_response else None
-
-    if not access_token:
-        logger.info("No access token found for get_user_info.")
-        return None
-
+    creds, message = _get_credentials_or_auth_request(
+        tool_context,
+        "To proceed, sign in with your Google account first."
+    )
+    logger.info(f"Credentials obtained: {creds}, Message: {message}")
+    if message:
+        return message
+    
+    # At this point, we have valid credentials. Make the API call.
     userinfo_endpoint = "https://www.googleapis.com/oauth2/v3/userinfo"
-    headers = {"Authorization": f"Bearer {access_token}"}
+    headers = {"Authorization": f"Bearer {creds.token}"}
     
     try:
         response = requests.get(userinfo_endpoint, headers=headers)
@@ -134,7 +219,39 @@ def get_user_info(tool_context: ToolContext) -> str | None:
         
         user_info = response.json()
         logger.info(f">>> 🛠️ Tool: Successfully retrieved user info: {user_info}")
-        return user_info
+
+        if not user_info:
+            return {
+                "status": "error",
+                "message": "Unable to resolve user identity.",
+            }
+    
+        logger.info(f">>> 🛠️ Tool: Retrieved user info: {json.dumps(user_info)}")
+        
+        user_name = user_info.get("name")
+        logger.info(f">>> 🛠️ Tool: Extracted user name: {user_name}")
+
+        if not user_name:
+            return {
+                "status": "error",
+                "message": "Unable to retrieve user's formatted name.",
+            }
+
+        if USER_NAME_PLACEHOLDER not in query:
+            return {
+                "status": "error",
+                "message": (
+                    "For user-scoped queries, include the placeholder "
+                    f"{USER_NAME_PLACEHOLDER} for formattedName."
+                ),
+            }
+
+        safe_name = re.sub(r"'", r"\\'", user_name)
+        resolved_query = query.replace(USER_NAME_PLACEHOLDER, safe_name)
+
+        logger.info(f">>> 🛠️ Tool: Resolved GQL for current user:\n{resolved_query}")
+        return execute_gql(resolved_query)
+
     except requests.RequestException as e:
         logger.error(f">>> 🛠️ Tool: Failed to retrieve user info: {str(e)}")
         return None
@@ -151,18 +268,26 @@ Your goal is to answer user questions by querying the Spanner Graph database usi
 {physical_schema}
 
 --- 3. RULES FOR GQL ---
-Always start queries with: GRAPH TeamAgent MATCH ...
-Use the 'execute_gql' tool to run your queries.
+Always start queries with: GRAPH {SPANNER_GRAPH_NAME} MATCH ...
+Use the 'execute_gql' tool to run your queries when a user is not querying their own data.
+Do NOT use COLLECT(...). It is not supported in Spanner GQL.
+For one-to-many relationships (for example person -> skills), return scalar rows (like s.skillName) and summarize/aggregate in natural language after retrieval.
 If a query fails, read the error, rewrite the GQL, and try again.
 
 --- 4. WHO AM I ---
-If users ask questions relative to themselves, use the get_user_info tool to get the user's email.
-You can write GQL predicates based on the get_user_info data: get_user_info.email -> Person.cloudEmailAddress.
+Self-referential queries MUST resolve identity first, then query graph data.
+If a user asks about themselves (for example: "who am i?", or uses self-referential language), you MUST use the 'execute_gql_for_current_user' tool.
+When querying by a user's name, include {USER_NAME_PLACEHOLDER} in the GQL predicate where formattedName is needed.
+Map the userinfo name field to the graph field: Person.formattedName.
+If a query fails, read the error, rewrite the GQL, and try again. Do not provide a response when running a query again.
+
+Example pattern for name-based self-referential query:
+GRAPH {SPANNER_GRAPH_NAME} MATCH (p:Person) WHERE p.formattedName LIKE '%{USER_NAME_PLACEHOLDER}%' RETURN p
 """
 
 root_agent = LlmAgent(
     model="gemini-2.5-pro",
     name="knowledge_graph_agent",
     instruction=system_prompt,
-    tools=[execute_gql, get_user_info]
+    tools=[execute_gql, execute_gql_for_current_user]
 )
