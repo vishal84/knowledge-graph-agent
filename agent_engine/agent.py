@@ -45,6 +45,7 @@ USER_NAME_PLACEHOLDER = "user_name"
 DYNAMIC_AUTH_PARAM_NAME = "dynamic_auth_config" # Name of the parameter to inject
 DYNAMIC_AUTH_INTERNAL_KEY = "oauth2_auth_code_flow.access_token" # Internal key for the token
 
+# Used to retrieve the auth_id from session after authentication and inject it into tool calls that require it
 def dynamic_token_injection(tool: BaseTool, args: Dict[str, Any], tool_context: ToolContext) -> Optional[Dict]:
     token_key = None
     pattern = re.compile(f'' + AUTH_ID + '.*')
@@ -66,7 +67,7 @@ def dynamic_token_injection(tool: BaseTool, args: Dict[str, Any], tool_context: 
 # ==========================================
 # 2. SETUP ONTOLOGY & SCHEMA
 # ==========================================
-ontology_compiler = OntologyCompiler(Path(__file__).parent / 'ontology_file.ttl')
+ontology_compiler = OntologyCompiler('ontology_file.ttl')
 ontology_summary = ontology_compiler.compile_summary()
 
 # Get user credentails for Spanner access
