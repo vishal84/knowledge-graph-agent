@@ -10,6 +10,7 @@ from google.api_core.exceptions import InvalidArgument
 from google.adk.agents import LlmAgent
 from google.adk.tools import ToolContext
 from google.adk.auth import AuthConfig
+from google.genai.types import Part
 
 import google.auth
 import google.auth.transport.requests
@@ -207,7 +208,8 @@ def execute_gql_for_current_user(query: str, tool_context: ToolContext) -> dict:
     )
     logger.info(f"Credentials obtained: {creds}, Message: {message}")
     if message:
-        return message
+        tool_context.actions.skip_summarization = True
+        return Part.from_text(text=message)
     
     # At this point, we have valid credentials. Make the API call.
     userinfo_endpoint = "https://www.googleapis.com/oauth2/v3/userinfo"
