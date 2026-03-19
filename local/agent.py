@@ -30,13 +30,19 @@ load_dotenv(dotenv_path=env_path)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
 
+# Project Settings
 GOOGLE_CLOUD_PROJECT = os.getenv("GOOGLE_CLOUD_PROJECT")
 CLIENT_ID = os.getenv("CLIENT_ID")
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
+
+# Spanner Config
 SPANNER_INSTANCE_ID = os.getenv("SPANNER_INSTANCE_ID")
 SPANNER_DATABASE_ID = os.getenv("SPANNER_DATABASE_ID")
 SPANNER_GRAPH_NAME = (os.getenv("SPANNER_GRAPH_NAME") or "").strip() or "TeamAgent"
-CURRENT_USER_EMAIL_PLACEHOLDER = {current_user_email}
+SPANNER_DISABLE_BUILTIN_METRICS = os.getenv("SPANNER_DISABLE_BUILTIN_METRICS")
+
+current_user_email = "user@example.com"
+CURRENT_USER_EMAIL_PLACEHOLDER = f"{current_user_email}"
 
 # ==========================================
 # 2. SETUP ONTOLOGY & SCHEMA
@@ -50,7 +56,14 @@ request = google.auth.transport.requests.Request()
 credentials.refresh(request)
 logger.info(f"Obtained access token for Spanner authentication: {credentials.get_cred_info}...")
 
-spanner_client = spanner.Client(project=GOOGLE_CLOUD_PROJECT, credentials=credentials)
+if SPANNER_DISABLE_BUILTIN_METRICS:
+    os.environ["SPANNER_DISABLE_BUILTIN_METRICS"] = "true"
+
+spanner_client = spanner.Client(
+    project=GOOGLE_CLOUD_PROJECT,
+    credentials=credentials,
+    disable_builtin_metrics=SPANNER_DISABLE_BUILTIN_METRICS,
+)
 
 # Connect to Spanner
 graph_store = SpannerGraphStore(
@@ -197,7 +210,7 @@ Your goal is to answer user questions by querying the Spanner Graph database usi
 {physical_schema}
 
 --- 3. RULES FOR GQL ---
-Always start queries with: GRAPH TeamAgent MATCH ...
+Always start queries with: GRAPH {SPANNER_GRAPH_NAME} MATCH ...
 Use the 'execute_gql' tool to run your queries.
 If a query fails, read the error, rewrite the GQL, and try again.
 
@@ -207,9 +220,10 @@ If a user asks about themselves (for example: "who am i", "me", "my", "myself", 
 you MUST use 'execute_gql_for_current_user' instead of 'execute_gql'.
 When using 'execute_gql_for_current_user', include {CURRENT_USER_EMAIL_PLACEHOLDER} in the GQL predicate where email is needed.
 Map authenticated email to graph field: Person.cloudEmailAddress.
+If a query fails, read the error, rewrite the GQL, and try again.
 
 Example pattern:
-GRAPH TeamAgent MATCH (p:Person) WHERE p.cloudEmailAddress = '{CURRENT_USER_EMAIL_PLACEHOLDER}' RETURN p
+GRAPH {SPANNER_GRAPH_NAME} MATCH (p:Person) WHERE p.cloudEmailAddress = '{CURRENT_USER_EMAIL_PLACEHOLDER}' RETURN p
 """
 
 root_agent = LlmAgent(
