@@ -67,7 +67,7 @@ def dynamic_token_injection(tool: BaseTool, args: Dict[str, Any], tool_context: 
 # ==========================================
 # 2. SETUP ONTOLOGY & SCHEMA
 # ==========================================
-ontology_compiler = OntologyCompiler('ontology_file.ttl')
+ontology_compiler = OntologyCompiler(Path(__file__).parent.parent / 'ontology_file.ttl')
 ontology_summary = ontology_compiler.compile_summary()
 
 # Get user credentails for Spanner access
