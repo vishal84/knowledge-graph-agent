@@ -15,8 +15,8 @@ def main():
     logger = logging.getLogger(__name__)
 
     # --- Agent Configuration ---
-    AGENT_DISPLAY_NAME = "User Info Agent"
-    AGENT_DESCRIPTION = "An ADK agent that returns information about an end user from an MCP server hosted on Cloud Run."
+    AGENT_DISPLAY_NAME = "Knowledge Graph Agent"
+    AGENT_DESCRIPTION = "An ADK agent that returns fictitious information from a people graph hosted on Spanner."
 
     # --- Environment Variables ---
     logger.info("Loading environment variables...")
@@ -64,7 +64,7 @@ def main():
             "description": AGENT_DESCRIPTION,
             "adk_agent_definition": {
                 "tool_settings": {
-                    "tool_description": "An ADK agent that returns information about an end user from an MCP server hosted on Cloud Run.",
+                    "tool_description": "An ADK agent that returns fictitious information from a people graph hosted on Spanner.",
                 },
                 "provisioned_reasoning_engine": {
                     "reasoning_engine": AGENT_ENGINE_ID
