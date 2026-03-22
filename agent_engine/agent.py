@@ -47,6 +47,7 @@ DYNAMIC_AUTH_INTERNAL_KEY = "oauth2_auth_code_flow.access_token" # Internal key 
 
 graph_store: Optional[SpannerGraphStore] = None
 physical_schema: Optional[str] = None
+runtime_identity_logged = False
 
 # Used to retrieve the auth_id from session after authentication and inject it into tool calls that require it
 def dynamic_token_injection(tool: BaseTool, args: Dict[str, Any], tool_context: ToolContext) -> Optional[Dict]:
@@ -73,6 +74,45 @@ def dynamic_token_injection(tool: BaseTool, args: Dict[str, Any], tool_context: 
 ontology_compiler = OntologyCompiler(Path(__file__).resolve().parent / 'ontology_file.ttl')
 ontology_summary = ontology_compiler.compile_summary()
 
+def _log_runtime_identity() -> None:
+    """Log the runtime principal details used to create Spanner clients."""
+    global runtime_identity_logged
+    if runtime_identity_logged:
+        return
+
+    runtime_identity_logged = True
+
+    try:
+        credentials, detected_project = google.auth.default()
+        logger.info(
+            "Runtime credentials detected. type=%s project=%s service_account_email=%s quota_project_id=%s",
+            type(credentials).__name__,
+            detected_project,
+            getattr(credentials, "service_account_email", None),
+            getattr(credentials, "quota_project_id", None),
+        )
+    except Exception as exc:
+        logger.warning("Failed to inspect google.auth.default() credentials: %s", exc)
+
+    try:
+        metadata_response = requests.get(
+            "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email",
+            headers={"Metadata-Flavor": "Google"},
+            timeout=5,
+        )
+        if metadata_response.ok:
+            logger.info(
+                "Runtime metadata service account email: %s",
+                metadata_response.text.strip(),
+            )
+        else:
+            logger.warning(
+                "Metadata server returned status %s while reading default service account email.",
+                metadata_response.status_code,
+            )
+    except Exception as exc:
+        logger.warning("Failed to query metadata server for runtime service account: %s", exc)
+
 
 def _get_graph_store() -> SpannerGraphStore:
     """Create the Spanner graph store lazily to avoid import-time DB calls."""
@@ -80,11 +120,15 @@ def _get_graph_store() -> SpannerGraphStore:
     if graph_store is not None:
         return graph_store
 
+    _log_runtime_identity()
+
     if SPANNER_DISABLE_BUILTIN_METRICS:
         os.environ["SPANNER_DISABLE_BUILTIN_METRICS"] = "true"
 
+    credentials, _ = google.auth.default()
     spanner_client = spanner.Client(
         project=GOOGLE_CLOUD_PROJECT,
+        credentials=credentials,
         disable_builtin_metrics=SPANNER_DISABLE_BUILTIN_METRICS,
     )
 
