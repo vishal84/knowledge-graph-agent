@@ -42,3 +42,4 @@ terraform.tfstate
 terraform.tfstate.backup
 
 .adk/
+*agent_engine_tmp*/

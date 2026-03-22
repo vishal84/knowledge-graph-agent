@@ -280,7 +280,7 @@ If a query fails, read the error, rewrite the GQL, and try again.
 Self-referential queries MUST resolve identity first, then query graph data.
 If a user asks about themselves (for example: "who am i?", or uses self-referential language), you MUST use the 'execute_gql_for_current_user' tool.
 When querying by a user's name, include {USER_NAME_PLACEHOLDER} in the GQL predicate where formattedName is needed.
-Map the userinfo name field to the graph field: Person.formattedName.
+Map the userinfo name field to the graph field: Person.formattedName. 
 If a query fails, read the error, rewrite the GQL, and try again. Do not provide a response when running a query again.
 
 Example pattern for name-based self-referential query:
