@@ -45,6 +45,9 @@ USER_NAME_PLACEHOLDER = "user_name"
 DYNAMIC_AUTH_PARAM_NAME = "dynamic_auth_config" # Name of the parameter to inject
 DYNAMIC_AUTH_INTERNAL_KEY = "oauth2_auth_code_flow.access_token" # Internal key for the token
 
+graph_store: Optional[SpannerGraphStore] = None
+physical_schema: Optional[str] = None
+
 # Used to retrieve the auth_id from session after authentication and inject it into tool calls that require it
 def dynamic_token_injection(tool: BaseTool, args: Dict[str, Any], tool_context: ToolContext) -> Optional[Dict]:
     token_key = None
@@ -67,36 +70,44 @@ def dynamic_token_injection(tool: BaseTool, args: Dict[str, Any], tool_context: 
 # ==========================================
 # 2. SETUP ONTOLOGY & SCHEMA
 # ==========================================
-ontology_compiler = OntologyCompiler(Path(__file__).parent.parent / 'ontology_file.ttl')
+ontology_compiler = OntologyCompiler(Path(__file__).resolve().parent / 'ontology_file.ttl')
 ontology_summary = ontology_compiler.compile_summary()
 
-# Get user credentails for Spanner access
-credentials, _ = google.auth.default()
-request = google.auth.transport.requests.Request()
-credentials.refresh(request)
-logger.info(f"Obtained access token for Spanner authentication: {credentials.token}...")
 
-if SPANNER_DISABLE_BUILTIN_METRICS:
-    os.environ["SPANNER_DISABLE_BUILTIN_METRICS"] = "true"
+def _get_graph_store() -> SpannerGraphStore:
+    """Create the Spanner graph store lazily to avoid import-time DB calls."""
+    global graph_store
+    if graph_store is not None:
+        return graph_store
 
-spanner_client = spanner.Client(
-    project=GOOGLE_CLOUD_PROJECT,
-    credentials=credentials,
-    disable_builtin_metrics=SPANNER_DISABLE_BUILTIN_METRICS,
-)
+    if SPANNER_DISABLE_BUILTIN_METRICS:
+        os.environ["SPANNER_DISABLE_BUILTIN_METRICS"] = "true"
 
-# Connect to Spanner
-graph_store = SpannerGraphStore(
-    instance_id=SPANNER_INSTANCE_ID,
-    database_id=SPANNER_DATABASE_ID,
-    graph_name=SPANNER_GRAPH_NAME,
-    client=spanner_client
-)
-physical_schema = graph_store.get_schema
+    spanner_client = spanner.Client(
+        project=GOOGLE_CLOUD_PROJECT,
+        disable_builtin_metrics=SPANNER_DISABLE_BUILTIN_METRICS,
+    )
+
+    graph_store = SpannerGraphStore(
+        instance_id=SPANNER_INSTANCE_ID,
+        database_id=SPANNER_DATABASE_ID,
+        graph_name=SPANNER_GRAPH_NAME,
+        client=spanner_client,
+    )
+    return graph_store
+
+
+def _get_physical_schema() -> str:
+    """Fetch and cache schema lazily so startup doesn't require Spanner access."""
+    global physical_schema
+    if physical_schema is not None:
+        return physical_schema
+    physical_schema = _get_graph_store().get_schema
+    return physical_schema
 
 def _run_gql_query(query: str) -> dict:
     logger.info(f">>> 🛠️ Tool: Query sent to Spanner Graph:\n{query}")
-    results = graph_store.query(query)
+    results = _get_graph_store().query(query)
     if not results:
         return {"status": "success", "result": "Query returned no rows."}
 
@@ -153,6 +164,7 @@ def execute_gql(query: str) -> dict:
             }
 
     try:
+        _get_physical_schema()
         # --- 2. Query Execution ---
         # --- 3. Structured Result Formatting ---
         # Return results as a JSON string for better machine readability by the LLM.
@@ -238,7 +250,10 @@ def execute_gql_for_current_user(query: str, tool_context: ToolContext) -> dict:
 
     except requests.RequestException as e:
         logger.error(f">>> 🛠️ Tool: Failed to retrieve user info: {str(e)}")
-        return None
+        return {
+            "status": "error",
+            "message": f"Failed to retrieve user info: {str(e)}",
+        }
 
 system_prompt = f"""
 You are TeamAgent, an expert HR and Staffing assistant.
@@ -249,7 +264,7 @@ Your goal is to answer user questions by querying the Spanner Graph database usi
 {ontology_summary}
 
 --- 2. PHYSICAL DATABASE SCHEMA ---
-{physical_schema}
+Schema is loaded lazily at runtime from Spanner to avoid deployment-time import failures.
 
 --- 3. RULES FOR GQL ---
 Always start queries with: GRAPH {SPANNER_GRAPH_NAME} MATCH ...
