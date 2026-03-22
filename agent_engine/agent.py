@@ -84,8 +84,8 @@ def _log_runtime_identity() -> None:
 
     try:
         credentials, detected_project = google.auth.default()
-        logger.info(
-            "Runtime credentials detected. type=%s project=%s service_account_email=%s quota_project_id=%s",
+        logger.error(
+            "RUNTIME_IDENTITY credentials type=%s project=%s service_account_email=%s quota_project_id=%s",
             type(credentials).__name__,
             detected_project,
             getattr(credentials, "service_account_email", None),
@@ -101,8 +101,8 @@ def _log_runtime_identity() -> None:
             timeout=5,
         )
         if metadata_response.ok:
-            logger.info(
-                "Runtime metadata service account email: %s",
+            logger.error(
+                "RUNTIME_IDENTITY metadata_service_account_email=%s",
                 metadata_response.text.strip(),
             )
         else:
