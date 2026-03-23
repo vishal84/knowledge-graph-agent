@@ -37,7 +37,9 @@ def _build_agent_engine_config(
         "python-dotenv>=1.0.0",
         "google-auth>=2.30.0",
         "google-cloud-spanner>=3.52.0",
+        "langchain-google-spanner",
         "rdflib",
+        "opentelemetry-instrumentation-google-genai"
     ],
     env_vars={
         "GOOGLE_CLOUD_PROJECT_NUMBER": google_cloud_project_number,

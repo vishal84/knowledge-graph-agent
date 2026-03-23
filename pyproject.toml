@@ -8,7 +8,9 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "google-auth>=2.30.0",
     "google-cloud-spanner>=3.52.0",
-    "rdflib"
+    "langchain-google-spanner",
+    "rdflib",
+    "opentelemetry-instrumentation-google-genai"
 ]
 
 [tool.uv]
