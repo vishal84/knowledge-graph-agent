@@ -20,9 +20,6 @@ import google.auth
 
 from .ontology_compiler import OntologyCompiler
 
-from langchain_google_spanner import SpannerGraphStore
-from google.cloud import spanner
-
 from dotenv import load_dotenv
 
 # Load environment variables from the same directory as this file
@@ -49,8 +46,6 @@ USER_NAME_PLACEHOLDER = "user_name"
 DYNAMIC_AUTH_PARAM_NAME = "dynamic_auth_config" # Name of the parameter to inject
 DYNAMIC_AUTH_INTERNAL_KEY = "oauth2_auth_code_flow.access_token" # Internal key for the token
 
-graph_store: Optional[SpannerGraphStore] = None
-physical_schema: Optional[str] = None
 runtime_identity_logged = False
 
 # Used to retrieve the auth_id from session after authentication and inject it into tool calls that require it
@@ -88,81 +83,6 @@ tool_settings = SpannerToolSettings(
 # User identity is resolved separately via the GE-injected token in tool_context.state.
 _adc, _ = google.auth.default()
 adc_credentials_config = SpannerCredentialsConfig(credentials=_adc)
-
-def _log_runtime_identity() -> None:
-    """Log the runtime principal details used to create Spanner clients."""
-    global runtime_identity_logged
-    if runtime_identity_logged:
-        return
-
-    runtime_identity_logged = True
-
-    try:
-        credentials, detected_project = google.auth.default()
-        logger.error(
-            "RUNTIME_IDENTITY credentials type=%s project=%s service_account_email=%s quota_project_id=%s",
-            type(credentials).__name__,
-            detected_project,
-            getattr(credentials, "service_account_email", None),
-            getattr(credentials, "quota_project_id", None),
-        )
-    except Exception as exc:
-        logger.warning("Failed to inspect google.auth.default() credentials: %s", exc)
-
-    try:
-        metadata_response = requests.get(
-            "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email",
-            headers={"Metadata-Flavor": "Google"},
-            timeout=5,
-        )
-        if metadata_response.ok:
-            logger.error(
-                "RUNTIME_IDENTITY metadata_service_account_email=%s",
-                metadata_response.text.strip(),
-            )
-        else:
-            logger.warning(
-                "Metadata server returned status %s while reading default service account email.",
-                metadata_response.status_code,
-            )
-    except Exception as exc:
-        logger.warning("Failed to query metadata server for runtime service account: %s", exc)
-
-
-def _get_graph_store() -> SpannerGraphStore:
-    """Create the Spanner graph store lazily — used only for schema introspection."""
-    global graph_store
-    if graph_store is not None:
-        return graph_store
-
-    _log_runtime_identity()
-
-    if SPANNER_DISABLE_BUILTIN_METRICS:
-        os.environ["SPANNER_DISABLE_BUILTIN_METRICS"] = "true"
-
-    credentials, _ = google.auth.default()
-    spanner_client = spanner.Client(
-        project=GOOGLE_CLOUD_PROJECT,
-        credentials=credentials,
-        disable_builtin_metrics=SPANNER_DISABLE_BUILTIN_METRICS,
-    )
-
-    graph_store = SpannerGraphStore(
-        instance_id=SPANNER_INSTANCE_ID,
-        database_id=SPANNER_DATABASE_ID,
-        graph_name=SPANNER_GRAPH_NAME,
-        client=spanner_client,
-    )
-    return graph_store
-
-
-def _get_physical_schema() -> str:
-    """Fetch and cache schema lazily so startup doesn't require Spanner access."""
-    global physical_schema
-    if physical_schema is not None:
-        return physical_schema
-    physical_schema = _get_graph_store().get_schema
-    return physical_schema
 
 def _run_gql_query(query: str, credentials: BaseCredentials, settings: SpannerToolSettings, tool_context: ToolContext) -> dict:
     logger.info(f">>> 🛠️ Tool: Query sent to Spanner Graph:\n{query}")
@@ -227,7 +147,6 @@ def execute_gql(query: str, credentials: BaseCredentials, settings: SpannerToolS
             }
 
     try:
-        _get_physical_schema()
         # --- 2. Query Execution ---
         # --- 3. Structured Result Formatting ---
         return _run_gql_query(query, credentials, settings, tool_context)

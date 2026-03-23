@@ -38,7 +38,6 @@ def _build_agent_engine_config(
         "google-auth>=2.30.0",
         "google-cloud-spanner>=3.52.0",
         "rdflib",
-        "langchain-google-spanner"
     ],
     env_vars={
         "GOOGLE_CLOUD_PROJECT_NUMBER": google_cloud_project_number,
