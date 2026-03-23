@@ -1,7 +1,7 @@
 [project]
-name = "user-info-agent"
+name = "knowledge-graph-agent"
 version = "0.1.0"
-description = "An ADK agent that consumes an MCP server deployed on Cloud Run using end user authentication registered with Gemini Enterprise."
+description = "An ADK agent that uses a knowledge graph deployed on Spanner with end user authentication registered with Gemini Enterprise."
 requires-python = ">=3.12"
 dependencies = [
     "google-adk>=1.20.0",

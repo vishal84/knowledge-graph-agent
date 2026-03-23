@@ -1350,6 +1350,29 @@ wheels = [
 ]
 
 [[package]]
+name = "knowledge-graph-agent"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "google-adk" },
+    { name = "google-auth" },
+    { name = "google-cloud-spanner" },
+    { name = "langchain-google-spanner" },
+    { name = "python-dotenv" },
+    { name = "rdflib" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "google-adk", specifier = ">=1.20.0" },
+    { name = "google-auth", specifier = ">=2.30.0" },
+    { name = "google-cloud-spanner", specifier = ">=3.52.0" },
+    { name = "langchain-google-spanner" },
+    { name = "python-dotenv", specifier = ">=1.0.0" },
+    { name = "rdflib" },
+]
+
+[[package]]
 name = "langchain"
 version = "0.3.28"
 source = { registry = "https://us-python.pkg.dev/artifact-foundry-prod/ah-3p-staging-python/simple/" }
@@ -2762,29 +2785,6 @@ source = { registry = "https://us-python.pkg.dev/artifact-foundry-prod/ah-3p-sta
 sdist = { url = "https://us-python.pkg.dev/artifact-foundry-prod/ah-3p-staging-python/urllib3/urllib3-2.6.3.tar.gz", hash = "sha256:1b62b6884944a57dbe321509ab94fd4d3b307075e0c2eae991ac71ee15ad38ed" }
 wheels = [
     { url = "https://us-python.pkg.dev/artifact-foundry-prod/ah-3p-staging-python/urllib3/urllib3-2.6.3-py3-none-any.whl", hash = "sha256:bf272323e553dfb2e87d9bfd225ca7b0f467b919d7bbd355436d3fd37cb0acd4" },
-]
-
-[[package]]
-name = "user-info-agent"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "google-adk" },
-    { name = "google-auth" },
-    { name = "google-cloud-spanner" },
-    { name = "langchain-google-spanner" },
-    { name = "python-dotenv" },
-    { name = "rdflib" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "google-adk", specifier = ">=1.20.0" },
-    { name = "google-auth", specifier = ">=2.30.0" },
-    { name = "google-cloud-spanner", specifier = ">=3.52.0" },
-    { name = "langchain-google-spanner" },
-    { name = "python-dotenv", specifier = ">=1.0.0" },
-    { name = "rdflib" },
 ]
 
 [[package]]
