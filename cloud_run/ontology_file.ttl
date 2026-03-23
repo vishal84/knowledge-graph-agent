@@ -1,0 +1,1176 @@
+
+@prefix ax: <https://ontology.mock_corporation.com/teamagent#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+
+<https://ontology.mock_corporation.com/teamagent> rdf:type owl:Ontology ;
+    rdfs:label "TeamAgent Enterprise Graph Ontology" ;
+    rdfs:comment "Semantic mapping layer connecting natural language intents to the TeamAgentGraph Spanner DDL. 100% Coverage with LLM context hints and rich alternative labels." .
+
+# ==============================================================================
+# 1. CUSTOM ARCHITECTURAL DIRECTIVES
+# ==============================================================================
+
+ax:edgeFilter rdf:type owl:AnnotationProperty ;
+    rdfs:label "GQL Edge Filter" ;
+    rdfs:comment "Provides the exact WHERE clause needed for consolidated edge tables (e.g. connectionType = 'DM')." .
+
+ax:gqlEdgeLabel rdf:type owl:AnnotationProperty ;
+    rdfs:label "Spanner GQL Edge Label" ;
+    rdfs:comment "The exact physical edge label defined in the Spanner Property Graph DDL." .
+
+ax:includeInLookup rdf:type owl:AnnotationProperty ;
+    rdfs:label "Index in Universal Lookup Table" ;
+    rdfs:comment "Signals the background Python job to extract and upsert these values into the Spanner ULT." .
+
+ax:doNotEnrich rdf:type owl:AnnotationProperty ;
+    rdfs:label "Skip LLM Prompt Example Enrichment" ;
+    rdfs:comment "If false, the background job fetches the Top 5 most frequent values to ground the LLM's prompt." .
+
+ax:searchStrategy rdf:type owl:AnnotationProperty ;
+    rdfs:label "ULT Search Strategy" ;
+    rdfs:comment "Dictates whether the Resolver uses 'EXACT_OR_LIKE' (Native Search) or 'SEMANTIC_VECTOR' (Cosine Distance)." .
+
+ax:appliesToEdge rdf:type owl:AnnotationProperty ;
+    rdfs:label "Applies to Graph Edge" ;
+    rdfs:comment "Strictly binds a datatype property (column) to an ObjectProperty (Edge)." .
+
+ax:disambiguationDisplayContextTemplate rdf:type owl:AnnotationProperty ;
+    rdfs:label "Disambiguation Display Context Template" ;
+    rdfs:comment "A format string defining how to build the ULT disambiguationDisplayContext column for UI disambiguation." .
+
+# ==============================================================================
+# 2. CLASSES (GRAPH NODES - Mapped strictly to DDL Tables)
+# ==============================================================================
+
+ax:Person rdf:type owl:Class ;
+    rdfs:label "Person" ;
+    skos:altLabel "Employee", "Staff", "Colleague", "Professional" ;
+    rdfs:comment "Represents an individual employee or staff member in the enterprise." ;
+    ax:disambiguationDisplayContextTemplate "{formattedName} ({businessTitle}, {officeLocation})" .
+
+ax:Skill rdf:type owl:Class ;
+    rdfs:label "Skill" ;
+    skos:altLabel "Expertise", "Technology", "Capability", "Competency" ;
+    rdfs:comment "Represents a specific technical, soft, or professional capability." ;
+    ax:disambiguationDisplayContextTemplate "{skillName} [{skillTypeName}]" .
+
+ax:Company rdf:type owl:Class ;
+    rdfs:label "Company" ;
+    skos:altLabel "Employer", "Client", "Firm", "Organization" ;
+    rdfs:comment "Represents an external organization, typically a past employer." ;
+    ax:disambiguationDisplayContextTemplate "{companyName}" .
+
+ax:Institution rdf:type owl:Class ;
+    rdfs:label "Institution" ;
+    skos:altLabel "University", "School", "College", "Alma Mater" ;
+    rdfs:comment "Represents an educational organization like a university or college." ;
+    ax:disambiguationDisplayContextTemplate "{institutionName}" .
+
+ax:Language rdf:type owl:Class ;
+    rdfs:label "Language" ;
+    skos:altLabel "Spoken Language", "Tongue", "Dialect" ;
+    rdfs:comment "Represents a spoken or written human language." ;
+    ax:disambiguationDisplayContextTemplate "{languageName}" .
+
+ax:Certification rdf:type owl:Class ;
+    rdfs:label "Certification" ;
+    skos:altLabel "Credential", "Certificate", "License", "Qualification" ;
+    rdfs:comment "Represents a professional credential, license, or certificate." ;
+    ax:disambiguationDisplayContextTemplate "{certName} ({certTypeName})" .
+
+
+# ==============================================================================
+# 3. OBJECT PROPERTIES (GRAPH EDGES & TRAVERSALS)
+# ==============================================================================
+
+# --- Skills & Capabilities ---
+ax:hasSkill rdf:type owl:ObjectProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:range ax:Skill ;
+    rdfs:label "has skill" ;
+    skos:altLabel "expert in", "knows", "proficient with", "experienced in" ;
+    rdfs:comment "Answers questions about what technologies or expertise a person possesses." ;
+    ax:gqlEdgeLabel "HAS_SKILL" ;
+    owl:inverseOf ax:isSkillOf .
+
+ax:isSkillOf rdf:type owl:ObjectProperty ;
+    rdfs:domain ax:Skill ;
+    rdfs:range ax:Person ;
+    rdfs:label "is skill of" ;
+    skos:altLabel "skill possessed by", "expertise of" ;
+    rdfs:comment "Answers questions about who possesses a specific skill." ;
+    ax:gqlEdgeLabel "HAS_SKILL" .
+
+ax:hasCertification rdf:type owl:ObjectProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:range ax:Certification ;
+    rdfs:label "has certification" ;
+    skos:altLabel "certified in", "holds certificate", "credentialed in" ;
+    rdfs:comment "Answers questions about what credentials or licenses a person holds." ;
+    ax:gqlEdgeLabel "HAS_CERTIFICATION" ;
+    owl:inverseOf ax:isCertificationOf .
+
+ax:isCertificationOf rdf:type owl:ObjectProperty ;
+    rdfs:domain ax:Certification ;
+    rdfs:range ax:Person ;
+    rdfs:label "is certification of" ;
+    skos:altLabel "certification held by", "credential of" ;
+    rdfs:comment "Answers questions about who holds a specific certification." ;
+    ax:gqlEdgeLabel "HAS_CERTIFICATION" .
+
+ax:speaksLanguage rdf:type owl:ObjectProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:range ax:Language ;
+    rdfs:label "speaks language" ;
+    skos:altLabel "fluent in", "knows language", "bilingual in", "speaks" ;
+    rdfs:comment "Answers questions about a person's spoken languages or bilingual capabilities." ;
+    ax:gqlEdgeLabel "SPEAKS" ;
+    owl:inverseOf ax:isSpokenBy .
+
+ax:isSpokenBy rdf:type owl:ObjectProperty ;
+    rdfs:domain ax:Language ;
+    rdfs:range ax:Person ;
+    rdfs:label "is spoken by" ;
+    skos:altLabel "language spoken by", "speakers of" ;
+    rdfs:comment "Answers questions about who speaks a specific language." ;
+    ax:gqlEdgeLabel "SPEAKS" .
+
+# --- History & Affiliations ---
+ax:previouslyWorkedAt rdf:type owl:ObjectProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:range ax:Company ;
+    rdfs:label "previously worked at" ;
+    skos:altLabel "former employer", "worked for", "past experience", "alumni of company" ;
+    rdfs:comment "Answers questions about a person's career history or past employers before joining the firm." ;
+    ax:gqlEdgeLabel "PREVIOUSLY_WORKED_AT" ;
+    owl:inverseOf ax:employed .
+
+ax:employed rdf:type owl:ObjectProperty ;
+    rdfs:domain ax:Company ;
+    rdfs:range ax:Person ;
+    rdfs:label "employed" ;
+    skos:altLabel "former employees", "alumni of", "hired" ;
+    rdfs:comment "Answers questions about who used to work at a specific company." ;
+    ax:gqlEdgeLabel "PREVIOUSLY_WORKED_AT" .
+
+ax:alumnusOf rdf:type owl:ObjectProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:range ax:Institution ;
+    rdfs:label "alumnus of" ;
+    skos:altLabel "graduated from", "went to", "studied at", "alumni of" ;
+    rdfs:comment "Answers questions about where a person went to school or what university they graduated from." ;
+    ax:gqlEdgeLabel "ALUMNUS_OF" ;
+    owl:inverseOf ax:hasAlumnus .
+
+ax:hasAlumnus rdf:type owl:ObjectProperty ;
+    rdfs:domain ax:Institution ;
+    rdfs:range ax:Person ;
+    rdfs:label "has alumnus" ;
+    skos:altLabel "graduates", "alumni", "students of" ;
+    rdfs:comment "Answers questions about who graduated from a specific institution." ;
+    ax:gqlEdgeLabel "ALUMNUS_OF" .
+
+# --- Peer Recognition ---
+ax:recognized rdf:type owl:ObjectProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:range ax:Person ;
+    rdfs:label "recognized" ;
+    skos:altLabel "gave an award to", "rewarded", "nominated" ;
+    rdfs:comment "Answers questions about who gave a peer award or spot bonus to someone else." ;
+    ax:gqlEdgeLabel "RECOGNIZED" ;
+    owl:inverseOf ax:recognizedBy .
+
+ax:recognizedBy rdf:type owl:ObjectProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:range ax:Person ;
+    rdfs:label "recognized by" ;
+    skos:altLabel "received award from", "was nominated by", "awarded by" ;
+    rdfs:comment "Answers questions about who received a peer award or spot bonus from someone else." ;
+    ax:gqlEdgeLabel "RECOGNIZED" .
+
+# --- Professional Connections ---
+ax:hasManager rdf:type owl:ObjectProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:range ax:Person ;
+    rdfs:label "has manager" ;
+    skos:altLabel "reports to", "managed by", "manager", "boss" ;
+    rdfs:comment "Answers questions like 'Who is Alice's manager?' or 'Who does Bob report to?'" ;
+    ax:gqlEdgeLabel "CONNECTED_TO" ;
+    ax:edgeFilter "connectionType = 'MANAGER'" ;
+    owl:inverseOf ax:isManagerFor .
+
+ax:isManagerFor rdf:type owl:ObjectProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:range ax:Person ;
+    rdfs:label "is manager for" ;
+    skos:altLabel "manages", "leads", "is the boss of", "supervisor of" ;
+    rdfs:comment "Answers questions like 'Who does Alice manage?' or 'Who reports to Bob?'" ;
+    ax:gqlEdgeLabel "CONNECTED_TO" .
+
+ax:hasDeploymentManager rdf:type owl:ObjectProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:range ax:Person ;
+    rdfs:label "has deployment manager" ;
+    skos:altLabel "has DM", "staffed by", "resource manager", "deployment manager" ;
+    rdfs:comment "Answers questions about who handles staffing, deployment, or resource management for a person." ;
+    ax:gqlEdgeLabel "CONNECTED_TO" ;
+    ax:edgeFilter "connectionType = 'DM'" ;
+    owl:inverseOf ax:isDeploymentManagerFor .
+
+ax:isDeploymentManagerFor rdf:type owl:ObjectProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:range ax:Person ;
+    rdfs:label "is deployment manager for" ;
+    skos:altLabel "staffs", "deploys", "resource manager for" ;
+    rdfs:comment "Answers questions about who a deployment manager is currently staffing or responsible for." ;
+    ax:gqlEdgeLabel "CONNECTED_TO" .
+
+ax:hasExecutiveAssistant rdf:type owl:ObjectProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:range ax:Person ;
+    rdfs:label "has executive assistant" ;
+    skos:altLabel "has EA", "supported by", "admin", "assistant" ;
+    rdfs:comment "Answers general questions about administrative support or who a person's EA is." ;
+    ax:gqlEdgeLabel "CONNECTED_TO" ;
+    ax:edgeFilter "connectionType = 'EA'" ;
+    owl:inverseOf ax:isExecutiveAssistantFor .
+
+ax:isExecutiveAssistantFor rdf:type owl:ObjectProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:range ax:Person ;
+    rdfs:label "is executive assistant for" ;
+    skos:altLabel "EA for", "supports", "admin for", "assistant for" ;
+    rdfs:comment "Answers questions about who an EA or admin is supporting." ;
+    ax:gqlEdgeLabel "CONNECTED_TO" .
+
+ax:hasPrimaryExecutiveAssistant rdf:type owl:ObjectProperty ;
+    rdfs:subPropertyOf ax:hasExecutiveAssistant ;
+    rdfs:label "has primary EA" ;
+    skos:altLabel "main EA", "primary admin", "primary assistant" ;
+    rdfs:comment "Use this when the user specifically asks for the main or primary admin/EA, filtering out backups." ;
+    ax:gqlEdgeLabel "CONNECTED_TO" ;
+    ax:edgeFilter "connectionType = 'EA' AND isPrimary = TRUE" ;
+    owl:inverseOf ax:isPrimaryExecutiveAssistantFor .
+
+ax:isPrimaryExecutiveAssistantFor rdf:type owl:ObjectProperty ;
+    rdfs:subPropertyOf ax:isExecutiveAssistantFor ;
+    rdfs:label "is primary EA for" ;
+    skos:altLabel "main EA for", "primary admin for" ;
+    rdfs:comment "Use this when the user specifically asks who the EA primarily supports." ;
+    ax:gqlEdgeLabel "CONNECTED_TO" ;
+    ax:edgeFilter "connectionType = 'EA' AND isPrimary = TRUE" .
+
+ax:hasCareerCoach rdf:type owl:ObjectProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:range ax:Person ;
+    rdfs:label "has career coach" ;
+    skos:altLabel "coached by", "mentor", "career coach" ;
+    rdfs:comment "Answers questions about mentorship, career coaching, or professional development advisors." ;
+    ax:gqlEdgeLabel "CONNECTED_TO" ;
+    ax:edgeFilter "connectionType = 'CAREER_COACH'" ;
+    owl:inverseOf ax:isCareerCoachFor .
+
+ax:isCareerCoachFor rdf:type owl:ObjectProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:range ax:Person ;
+    rdfs:label "is career coach for" ;
+    skos:altLabel "coaches", "mentors" ;
+    rdfs:comment "Answers questions about who a career coach is currently mentoring." ;
+    ax:gqlEdgeLabel "CONNECTED_TO" .
+
+ax:hasTalentConsultant rdf:type owl:ObjectProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:range ax:Person ;
+    rdfs:label "has talent consultant" ;
+    skos:altLabel "has TC", "advised by HR", "talent consultant", "HR rep" ;
+    rdfs:comment "Answers questions about HR contacts or talent consultants assigned to a person." ;
+    ax:gqlEdgeLabel "CONNECTED_TO" ;
+    ax:edgeFilter "connectionType = 'TC'" ;
+    owl:inverseOf ax:isTalentConsultantFor .
+
+ax:isTalentConsultantFor rdf:type owl:ObjectProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:range ax:Person ;
+    rdfs:label "is talent consultant for" ;
+    skos:altLabel "advises", "HR rep for" ;
+    rdfs:comment "Answers questions about who a talent consultant is assigned to." ;
+    ax:gqlEdgeLabel "CONNECTED_TO" .
+
+ax:hasDeploymentLead rdf:type owl:ObjectProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:range ax:Person ;
+    rdfs:label "has deployment lead" ;
+    skos:altLabel "has DL", "deployment lead", "DL" ;
+    rdfs:comment "Answers questions about the deployment leadership structure for a person." ;
+    ax:gqlEdgeLabel "CONNECTED_TO" ;
+    ax:edgeFilter "connectionType = 'DL'" ;
+    owl:inverseOf ax:isDeploymentLeadFor .
+
+ax:isDeploymentLeadFor rdf:type owl:ObjectProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:range ax:Person ;
+    rdfs:label "is deployment lead for" ;
+    skos:altLabel "leads deployment for" ;
+    rdfs:comment "Answers questions about who a deployment lead is responsible for." ;
+    ax:gqlEdgeLabel "CONNECTED_TO" .
+
+ax:hasRelationshipLeader rdf:type owl:ObjectProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:range ax:Person ;
+    rdfs:label "has relationship leader" ;
+    skos:altLabel "has RL", "relationship leader", "account leader", "RL" ;
+    rdfs:comment "Answers questions about relationship leaders or account leadership structures." ;
+    ax:gqlEdgeLabel "CONNECTED_TO" ;
+    ax:edgeFilter "connectionType = 'RL'" ;
+    owl:inverseOf ax:isRelationshipLeaderFor .
+
+ax:isRelationshipLeaderFor rdf:type owl:ObjectProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:range ax:Person ;
+    rdfs:label "is relationship leader for" ;
+    skos:altLabel "relationship leader for", "RL for" ;
+    rdfs:comment "Answers questions about who a relationship leader is responsible for." ;
+    ax:gqlEdgeLabel "CONNECTED_TO" .
+
+
+# ==============================================================================
+# 4. DATATYPE PROPERTIES (COLUMNS & PIPELINE TRIGGERS)
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# CATEGORY A: Identifiers & Deep Admin Codes (Strategy: Exact Match / Skip Enrich)
+# ------------------------------------------------------------------------------
+ax:partyId rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "party ID" ;
+    skos:altLabel "canonical ID", "person PK", "graph ID" ;
+    rdfs:comment "The primary key identifier for a person in the Spanner Graph." ;
+    ax:includeInLookup "false"^^xsd:boolean ;
+    ax:doNotEnrich "true"^^xsd:boolean .
+
+ax:formattedName rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "formatted name" ;
+    skos:altLabel "name", "employee name", "full name", "who is" ;
+    rdfs:comment "The primary full name of the person. Use this for exact or fuzzy name searches." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "EXACT_OR_LIKE" .
+
+ax:preferredFirstName rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "preferred first name" ;
+    skos:altLabel "first name", "goes by", "nickname" ;
+    rdfs:comment "The first name the person goes by (e.g., 'Bill' instead of 'William')." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "EXACT_OR_LIKE" .
+
+ax:lastName rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "last name" ;
+    skos:altLabel "surname", "family name" ;
+    rdfs:comment "The person's surname or family name." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "EXACT_OR_LIKE" .
+
+ax:cloudEmailAddress rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "email address" ;
+    skos:altLabel "email", "contact email" ;
+    rdfs:comment "The person's primary corporate email address." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "EXACT_OR_LIKE" .
+
+ax:employeeId rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "employee ID" ;
+    skos:altLabel "workday id", "staff id", "employee number" ;
+    rdfs:comment "The internal HR system identifier (e.g., Workday ID)." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "EXACT_OR_LIKE" .
+
+ax:microsoftId rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "microsoft ID" ;
+    skos:altLabel "login id", "domain id", "windows id", "AD id" ;
+    rdfs:comment "The person's enterprise domain login or Microsoft email ID." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "EXACT_OR_LIKE" .
+
+ax:enterpriseGuid rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "enterprise GUID" ;
+    skos:altLabel "guid", "enterprise id", "system id" ;
+    rdfs:comment "System-level globally unique identifier. Rarely used in natural language." ;
+    ax:includeInLookup "false"^^xsd:boolean ;
+    ax:doNotEnrich "true"^^xsd:boolean .
+
+ax:phoneNumber rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "phone number" ;
+    skos:altLabel "mobile", "contact number", "phone", "cell" ;
+    rdfs:comment "The person's contact number or mobile phone." ;
+    ax:includeInLookup "false"^^xsd:boolean .
+
+ax:lastModified rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "last modified timestamp" ;
+    skos:altLabel "updated at", "last changed" ;
+    rdfs:comment "System timestamp indicating when the record was last updated." ;
+    ax:includeInLookup "false"^^xsd:boolean .
+
+# Deep Org Codes (No LLM examples needed)
+ax:jobProfileCode rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "job profile code" ;
+    skos:altLabel "job code", "profile code" ;
+    rdfs:comment "Internal alphanumeric code representing the HR job profile." ;
+    ax:includeInLookup "false"^^xsd:boolean .
+
+ax:industryCode rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "industry code" ;
+    skos:altLabel "industry id", "sector code" ;
+    rdfs:comment "Internal alphanumeric code for the aligned industry." ;
+    ax:includeInLookup "false"^^xsd:boolean .
+
+ax:costCenter rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "cost center code" ;
+    skos:altLabel "budget code", "cost center number" ;
+    rdfs:comment "The financial cost center numeric code assigned to the person." ;
+    ax:includeInLookup "false"^^xsd:boolean .
+
+ax:officeLocationCode rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "office location code" ;
+    skos:altLabel "office code", "building code" ;
+    rdfs:comment "Internal alphanumeric code for the physical office building." ;
+    ax:includeInLookup "false"^^xsd:boolean .
+
+ax:accelerationCenterIdentifier rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "acceleration center ID" ;
+    skos:altLabel "AC ID", "offshore ID", "AC identifier" ;
+    rdfs:comment "Identifier for off-shore or near-shore acceleration center assignments." ;
+    ax:includeInLookup "false"^^xsd:boolean .
+
+ax:skillTypeCode rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Skill ;
+    rdfs:label "skill type code" ;
+    skos:altLabel "skill category code", "skill ID" ;
+    rdfs:comment "Internal code representing the category of a skill." ;
+    ax:includeInLookup "false"^^xsd:boolean .
+
+# Graph PK Codes for Reference Nodes
+ax:skillCode rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Skill ;
+    rdfs:label "skill code" ;
+    skos:altLabel "skill PK" ;
+    rdfs:comment "Primary key identifier for a specific skill." ;
+    ax:includeInLookup "false"^^xsd:boolean ;
+    ax:doNotEnrich "true"^^xsd:boolean .
+
+ax:languageCode rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Language ;
+    rdfs:label "language code" ;
+    skos:altLabel "language PK" ;
+    rdfs:comment "Primary key identifier for a spoken language." ;
+    ax:includeInLookup "false"^^xsd:boolean ;
+    ax:doNotEnrich "true"^^xsd:boolean .
+
+ax:certId rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Certification ;
+    rdfs:label "certification ID" ;
+    skos:altLabel "cert PK" ;
+    rdfs:comment "Primary key identifier for a certification." ;
+    ax:includeInLookup "false"^^xsd:boolean ;
+    ax:doNotEnrich "true"^^xsd:boolean .
+
+# ------------------------------------------------------------------------------
+# CATEGORY B: Categorical Enums (Strategy: Vectors + LLM Enrichment)
+# ------------------------------------------------------------------------------
+ax:globalGradeName rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "staff level" ;
+    skos:altLabel "grade", "rank", "level", "seniority", "band", "title" ;
+    rdfs:comment "Indicates the seniority or rank of the person (e.g., Manager, Partner, Associate)." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "SEMANTIC_VECTOR" ;
+    ax:doNotEnrich "false"^^xsd:boolean ;
+    skos:example "Associate", "Senior Associate", "Manager", "Director", "Partner" .
+
+ax:businessTitle rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "business title" ;
+    skos:altLabel "job title", "designation", "role" ;
+    rdfs:comment "The external-facing or custom job title of the person." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "SEMANTIC_VECTOR" ;
+    ax:doNotEnrich "false"^^xsd:boolean ;
+    skos:example "Software Engineer", "Cloud Architect", "Data Scientist" .
+
+ax:jobProfileDescription rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "job profile" ;
+    skos:altLabel "job function", "role profile", "standard title", "profile description" ;
+    rdfs:comment "The standardized HR role profile or job function description." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "SEMANTIC_VECTOR" ;
+    ax:doNotEnrich "false"^^xsd:boolean ;
+    skos:example "Software Engineer", "Management Consultant" .
+
+ax:jobFamilyGroupName rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "job family group" ;
+    skos:altLabel "capability group", "department", "macro function" ;
+    rdfs:comment "Broad organizational capability grouping (e.g., Technology, Operations)." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "SEMANTIC_VECTOR" ;
+    ax:doNotEnrich "false"^^xsd:boolean ;
+    skos:example "Technology", "Operations", "Internal Firm Services" .
+
+ax:jobFamilyName rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "job family name" ;
+    skos:altLabel "career track", "job family", "specialty group" ;
+    rdfs:comment "Specific career track or job family within the broader group." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "SEMANTIC_VECTOR" ;
+    ax:doNotEnrich "false"^^xsd:boolean ;
+    skos:example "Engineering", "Product Management" .
+
+ax:globalNetworkCompetencyName rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "global competency" ;
+    skos:altLabel "specialty area", "competency", "domain expertise" ;
+    rdfs:comment "The global network competency or specialty area." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "SEMANTIC_VECTOR" ;
+    ax:doNotEnrich "false"^^xsd:boolean ;
+    skos:example "Engineering", "Data & AI" .
+
+# Geography
+ax:location rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    ax:appliesToEdge ax:previouslyWorkedAt, ax:employed ;
+    rdfs:label "location" ;
+    skos:altLabel "city", "residence", "hometown", "located in", "town", "past job location", "previous city" ;
+    rdfs:comment "The primary city where the person is located, OR the geographic location where a past job took place." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "SEMANTIC_VECTOR" ;
+    ax:doNotEnrich "false"^^xsd:boolean ;
+    skos:example "Pasadena", "Seattle", "New York", "London", "Chicago" .
+
+ax:officeLocation rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "office location" ;
+    skos:altLabel "office", "base location", "branch", "assigned office", "home office" ;
+    rdfs:comment "The specific physical office or branch assigned to the person." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "SEMANTIC_VECTOR" ;
+    ax:doNotEnrich "false"^^xsd:boolean ;
+    skos:example "Pasadena", "Seattle", "New York", "London", "Chicago" .
+
+ax:officeLocationCommonName rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "office common name" ;
+    skos:altLabel "building name", "colloquial office name", "hub name" ;
+    rdfs:comment "The colloquial or common name for the office building." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "SEMANTIC_VECTOR" ;
+    ax:doNotEnrich "false"^^xsd:boolean ;
+    skos:example "Pasadena HQ", "Seattle HQ" .
+
+ax:officeLocationL2Description rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "office L2 description" ;
+    skos:altLabel "region", "office L2", "geography" ;
+    rdfs:comment "Secondary descriptor or region mapping for the office." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "SEMANTIC_VECTOR" ;
+    ax:doNotEnrich "false"^^xsd:boolean ;
+    skos:example "Main Hub", "Regional Branch" .
+
+ax:state rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "state" ;
+    skos:altLabel "province", "territory" ;
+    rdfs:comment "The state or province where the person is located." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "EXACT_OR_LIKE" ;
+    ax:doNotEnrich "false"^^xsd:boolean ;
+    skos:example "CA", "WA", "NY", "IL" .
+
+ax:countryCode rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "country" ;
+    skos:altLabel "nation", "country abbreviation" ;
+    rdfs:comment "The 3-letter country code where the person is located." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "EXACT_OR_LIKE" ;
+    ax:doNotEnrich "false"^^xsd:boolean ;
+    skos:example "USA", "GBR" .
+
+# Lines of Service
+ax:globalLoSL1Name rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "global line of service" ;
+    skos:altLabel "global LoS", "service line", "business unit", "division" ;
+    rdfs:comment "The highest level global business unit (e.g., Advisory, Tax, Assurance)." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "SEMANTIC_VECTOR" ;
+    ax:doNotEnrich "false"^^xsd:boolean ;
+    skos:example "Advisory", "Assurance", "Tax", "Internal Firm Services" .
+
+ax:localLoSL1 rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "local line of service L1" ;
+    skos:altLabel "local LoS", "local business unit" ;
+    rdfs:comment "The top-level local business unit." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "SEMANTIC_VECTOR" ;
+    ax:doNotEnrich "false"^^xsd:boolean ;
+    skos:example "Advisory", "Assurance" .
+
+ax:localLoSL2 rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "practice or group (L2)" ;
+    skos:altLabel "practice", "group", "sub-service line", "L2" ;
+    rdfs:comment "The secondary local business practice or group." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "SEMANTIC_VECTOR" ;
+    ax:doNotEnrich "false"^^xsd:boolean ;
+    skos:example "Cloud & Digital", "Risk Management" .
+
+ax:localLoSL3 rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "local line of service L3" ;
+    skos:altLabel "tertiary practice", "sub-group", "L3" ;
+    rdfs:comment "The tertiary local business sub-practice." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "SEMANTIC_VECTOR" ;
+    ax:doNotEnrich "false"^^xsd:boolean ;
+    skos:example "Data & AI" .
+
+ax:localLoSL4 rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "local line of service L4" ;
+    skos:altLabel "level 4 group", "team", "L4" ;
+    rdfs:comment "Level 4 local business hierarchy mapping." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "SEMANTIC_VECTOR" ;
+    ax:doNotEnrich "false"^^xsd:boolean ;
+    skos:example "GenAI Solutions" .
+
+ax:localLoSL5 rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "local line of service L5" ;
+    skos:altLabel "level 5 group", "sub-team", "L5" ;
+    rdfs:comment "Level 5 local business hierarchy mapping." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "SEMANTIC_VECTOR" ;
+    ax:doNotEnrich "false"^^xsd:boolean ;
+    skos:example "Engineering" .
+
+# General Org
+ax:industryName rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "industry" ;
+    skos:altLabel "sector", "market", "industry alignment", "vertical" ;
+    rdfs:comment "Answers questions about which industry sector the person aligns with (e.g., Healthcare, Financial Services)." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "SEMANTIC_VECTOR" ;
+    ax:doNotEnrich "false"^^xsd:boolean ;
+    skos:example "Financial Services", "Healthcare", "Retail", "Tech" .
+
+ax:waysofworking rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "work modality" ;
+    skos:altLabel "remote status", "hybrid status", "working preference", "modality", "WFH" ;
+    rdfs:comment "Answers questions about remote, hybrid, or in-office preferences." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "SEMANTIC_VECTOR" ;
+    ax:doNotEnrich "false"^^xsd:boolean ;
+    skos:example "Hybrid", "Virtual", "In-Office" .
+
+ax:employmentStatusName rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "employment status" ;
+    skos:altLabel "active status", "leave status", "employed" ;
+    rdfs:comment "Indicates if the person is currently active, on leave, or terminated." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "SEMANTIC_VECTOR" ;
+    ax:doNotEnrich "false"^^xsd:boolean ;
+    skos:example "Active", "On Leave", "Terminated" .
+
+ax:contractTypeName rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "contract type" ;
+    skos:altLabel "employment type", "full time", "contractor", "part time" ;
+    rdfs:comment "Indicates if the person is a full-time regular employee, contractor, etc." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "SEMANTIC_VECTOR" ;
+    ax:doNotEnrich "false"^^xsd:boolean ;
+    skos:example "Full-Time", "Contractor", "Part-Time" .
+
+ax:legalEntityName rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "legal entity" ;
+    skos:altLabel "operating company", "legal employer", "payrolling entity" ;
+    rdfs:comment "The formal corporate legal entity the person is employed by." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "SEMANTIC_VECTOR" ;
+    ax:doNotEnrich "false"^^xsd:boolean ;
+    skos:example "Mock Enterprise LLC" .
+
+# ------------------------------------------------------------------------------
+# CATEGORY C: Unstructured Text (Strategy: Vectors ONLY, DO NOT Enrich)
+# ------------------------------------------------------------------------------
+ax:bioSummary rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "biography" ;
+    skos:altLabel "bio", "summary", "background", "experience", "profile" ;
+    rdfs:comment "Contains the person's detailed background and experience. Good for semantic searches for niche expertise." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "SEMANTIC_VECTOR" ;
+    ax:doNotEnrich "true"^^xsd:boolean .
+
+ax:currentAreaOfFocus rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "current area of focus" ;
+    skos:altLabel "focus", "specialty", "working on", "current projects" ;
+    rdfs:comment "Describes what specific projects or domains the person is actively working on right now." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "SEMANTIC_VECTOR" ;
+    ax:doNotEnrich "true"^^xsd:boolean .
+
+ax:professionalInterestStatement rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "professional interest" ;
+    skos:altLabel "interests", "goals", "wants to learn", "career aspirations" ;
+    rdfs:comment "Describes what the person wants to learn, focus on, or transition to next." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "SEMANTIC_VECTOR" ;
+    ax:doNotEnrich "true"^^xsd:boolean .
+
+ax:orgHierarchyDescription rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "org hierarchy description" ;
+    skos:altLabel "reporting structure", "where they sit", "org chart" ;
+    rdfs:comment "A textual description of where the person sits in the reporting chain or broader organization." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "SEMANTIC_VECTOR" ;
+    ax:doNotEnrich "true"^^xsd:boolean .
+
+ax:costCenterDescription rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "cost center description" ;
+    skos:altLabel "cost center name", "budget area", "financial group" ;
+    rdfs:comment "The text description of the person's financial cost center." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "SEMANTIC_VECTOR" ;
+    ax:doNotEnrich "true"^^xsd:boolean .
+
+# ------------------------------------------------------------------------------
+# CATEGORY D: Reference Node Lookups (Indexes other tables into the ULT)
+# ------------------------------------------------------------------------------
+ax:skillName rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Skill ;
+    rdfs:label "skill name" ;
+    skos:altLabel "technology name", "capability", "skill string" ;
+    rdfs:comment "The actual string name of the skill (e.g., 'Python', 'GenAI'). Use this to search for specific skills." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "SEMANTIC_VECTOR" ;
+    ax:doNotEnrich "true"^^xsd:boolean .
+
+ax:skillTypeName rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Skill ;
+    rdfs:label "skill type name" ;
+    skos:altLabel "skill category", "skill type" ;
+    rdfs:comment "The category of the skill (e.g., 'Technical', 'Soft Skill')." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "SEMANTIC_VECTOR" ;
+    ax:doNotEnrich "false"^^xsd:boolean ;
+    skos:example "Technical", "Soft Skill" .
+
+ax:companyName rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Company ;
+    rdfs:label "company name" ;
+    skos:altLabel "client name", "firm name", "employer name", "company" ;
+    rdfs:comment "The name of the past employer or company." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "SEMANTIC_VECTOR" ;
+    ax:doNotEnrich "true"^^xsd:boolean .
+
+ax:institutionName rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Institution ;
+    rdfs:label "institution name" ;
+    skos:altLabel "university name", "school name", "college name" ;
+    rdfs:comment "The name of the university or educational institution." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "SEMANTIC_VECTOR" ;
+    ax:doNotEnrich "true"^^xsd:boolean .
+
+ax:certName rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Certification ;
+    rdfs:label "certification name" ;
+    skos:altLabel "certificate name", "credential name" ;
+    rdfs:comment "The exact name of the professional certification or credential." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "SEMANTIC_VECTOR" ;
+    ax:doNotEnrich "true"^^xsd:boolean .
+
+ax:certTypeName rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Certification ;
+    rdfs:label "certification type name" ;
+    skos:altLabel "certification type", "credential category" ;
+    rdfs:comment "The category of the certification." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "SEMANTIC_VECTOR" ;
+    ax:doNotEnrich "false"^^xsd:boolean ;
+    skos:example "Technical", "Professional" .
+
+ax:languageName rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Language ;
+    rdfs:label "language name" ;
+    skos:altLabel "tongue", "spoken language name" ;
+    rdfs:comment "The name of the spoken language (e.g., 'Spanish', 'Mandarin')." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "EXACT_OR_LIKE" ;
+    ax:doNotEnrich "false"^^xsd:boolean ;
+    skos:example "English", "Spanish", "French", "German", "Mandarin" .
+
+# ------------------------------------------------------------------------------
+# CATEGORY E: Graph Edge & Metric Attributes (Standard GQL Filters)
+# ------------------------------------------------------------------------------
+ax:isPrimary rdf:type owl:DatatypeProperty ;
+    ax:appliesToEdge ax:hasManager, ax:isManagerFor, ax:hasDeploymentManager, ax:isDeploymentManagerFor, ax:hasExecutiveAssistant, ax:isExecutiveAssistantFor, ax:hasCareerCoach, ax:isCareerCoachFor, ax:hasTalentConsultant, ax:isTalentConsultantFor, ax:hasDeploymentLead, ax:isDeploymentLeadFor, ax:hasRelationshipLeader, ax:isRelationshipLeaderFor ;
+    rdfs:label "is primary" ;
+    skos:altLabel "main", "primary connection", "default" ;
+    rdfs:comment "Boolean flag to distinguish primary connections (like main EA) from secondary or backup ones." ;
+    ax:includeInLookup "false"^^xsd:boolean ;
+    ax:doNotEnrich "true"^^xsd:boolean .
+
+ax:isTopSkill rdf:type owl:DatatypeProperty ;
+    ax:appliesToEdge ax:hasSkill, ax:isSkillOf ;
+    rdfs:label "is top skill" ;
+    skos:altLabel "core skill", "main skill", "top skill" ;
+    rdfs:comment "Boolean flag indicating if a skill is considered one of the person's core strengths." ;
+    ax:includeInLookup "false"^^xsd:boolean ;
+    ax:doNotEnrich "true"^^xsd:boolean .
+
+ax:isDesiredSkill rdf:type owl:DatatypeProperty ;
+    ax:appliesToEdge ax:hasSkill, ax:isSkillOf ;
+    rdfs:label "is desired skill" ;
+    skos:altLabel "wants to learn", "learning objective", "desired skill" ;
+    rdfs:comment "Boolean flag indicating if a skill is a learning goal or desired area of growth." ;
+    ax:includeInLookup "false"^^xsd:boolean ;
+    ax:doNotEnrich "true"^^xsd:boolean .
+
+ax:skillLevel rdf:type owl:DatatypeProperty ;
+    ax:appliesToEdge ax:hasSkill, ax:isSkillOf ;
+    rdfs:label "skill level" ;
+    skos:altLabel "proficiency", "expertise level", "competence" ;
+    rdfs:comment "Indicates the self-reported or assessed proficiency level of a skill (e.g., Beginner, Expert)." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "SEMANTIC_VECTOR" ;
+    ax:doNotEnrich "false"^^xsd:boolean ;
+    skos:example "Beginner", "Intermediate", "Expert" .
+
+ax:degreeName rdf:type owl:DatatypeProperty ;
+    ax:appliesToEdge ax:alumnusOf, ax:hasAlumnus ;
+    rdfs:label "degree name" ;
+    skos:altLabel "degree", "qualification", "major" ;
+    rdfs:comment "The specific type of degree obtained from an institution (e.g., B.S., MBA, PhD)." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "SEMANTIC_VECTOR" ;
+    ax:doNotEnrich "false"^^xsd:boolean ;
+    skos:example "B.S. Computer Science", "MBA", "M.S. Data Science", "B.A. Business" .
+
+ax:proficiencyLevel rdf:type owl:DatatypeProperty ;
+    ax:appliesToEdge ax:speaksLanguage, ax:isSpokenBy ;
+    rdfs:label "language proficiency" ;
+    skos:altLabel "fluency", "language level" ;
+    rdfs:comment "The fluency level of a spoken language (e.g., Native, Fluent, Conversational)." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "SEMANTIC_VECTOR" ;
+    ax:doNotEnrich "false"^^xsd:boolean ;
+    skos:example "Native", "Fluent", "Conversational", "Basic" .
+
+ax:abilityTypeName rdf:type owl:DatatypeProperty ;
+    ax:appliesToEdge ax:speaksLanguage, ax:isSpokenBy ;
+    rdfs:label "language ability type" ;
+    skos:altLabel "language ability", "reading speaking writing" ;
+    rdfs:comment "The type of language ability assessed (e.g., Reading, Speaking, Writing, Overall)." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "SEMANTIC_VECTOR" ;
+    ax:doNotEnrich "false"^^xsd:boolean ;
+    skos:example "Reading", "Speaking", "Writing", "Overall" .
+
+ax:jobTitle rdf:type owl:DatatypeProperty ;
+    ax:appliesToEdge ax:previouslyWorkedAt, ax:employed ;
+    rdfs:label "previous job title" ;
+    skos:altLabel "past title", "former role" ;
+    rdfs:comment "The specific role or title held at a past company." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "SEMANTIC_VECTOR" ;
+    ax:doNotEnrich "false"^^xsd:boolean .
+
+ax:experienceDescription rdf:type owl:DatatypeProperty ;
+    ax:appliesToEdge ax:previouslyWorkedAt, ax:employed ;
+    rdfs:label "experience description" ;
+    skos:altLabel "past responsibilities", "job duties" ;
+    rdfs:comment "A textual description of responsibilities held at a past company." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "SEMANTIC_VECTOR" ;
+    ax:doNotEnrich "true"^^xsd:boolean .
+
+ax:reason rdf:type owl:DatatypeProperty ;
+    ax:appliesToEdge ax:recognized, ax:recognizedBy ;
+    rdfs:label "reason for recognition" ;
+    skos:altLabel "recognition reason", "award text", "shoutout" ;
+    rdfs:comment "The text justification or message submitted when giving an award or recognition." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "SEMANTIC_VECTOR" ;
+    ax:doNotEnrich "true"^^xsd:boolean .
+
+ax:criteria rdf:type owl:DatatypeProperty ;
+    ax:appliesToEdge ax:recognized, ax:recognizedBy ;
+    rdfs:label "recognition criteria" ;
+    skos:altLabel "corporate value", "award criteria" ;
+    rdfs:comment "The specific corporate value or criteria the recognition was awarded for." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "SEMANTIC_VECTOR" ;
+    ax:doNotEnrich "false"^^xsd:boolean ;
+    skos:example "Outstanding Leadership", "Teamwork" .
+
+ax:spotBonusAmount rdf:type owl:DatatypeProperty ;
+    ax:appliesToEdge ax:recognized, ax:recognizedBy ;
+    rdfs:label "spot bonus amount" ;
+    skos:altLabel "bonus", "reward amount", "cash bonus" ;
+    rdfs:comment "The monetary value attached to a peer recognition or spot bonus." ;
+    ax:includeInLookup "false"^^xsd:boolean ;
+    ax:doNotEnrich "true"^^xsd:boolean .
+
+ax:pointsAwarded rdf:type owl:DatatypeProperty ;
+    ax:appliesToEdge ax:recognized, ax:recognizedBy ;
+    rdfs:label "recognition points awarded" ;
+    skos:altLabel "points", "award points" ;
+    rdfs:comment "The non-monetary points awarded during recognition." ;
+    ax:includeInLookup "false"^^xsd:boolean ;
+    ax:doNotEnrich "true"^^xsd:boolean .
+
+ax:nominationId rdf:type owl:DatatypeProperty ;
+    ax:appliesToEdge ax:recognized, ax:recognizedBy ;
+    rdfs:label "nomination ID" ;
+    skos:altLabel "award id", "nomination number" ;
+    rdfs:comment "The internal system ID for the recognition event." ;
+    ax:includeInLookup "false"^^xsd:boolean ;
+    ax:doNotEnrich "true"^^xsd:boolean .
+
+# Numeric / Boolean Work Metrics
+ax:travelPercent rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "travel percent" ;
+    skos:altLabel "willing to travel", "travel capability", "travel %" ;
+    rdfs:comment "The percentage of time the person is willing or expected to travel." ;
+    ax:includeInLookup "false"^^xsd:boolean ;
+    ax:doNotEnrich "true"^^xsd:boolean .
+
+ax:longTermRelocationFlag rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "open to long term relocation" ;
+    skos:altLabel "willing to relocate", "long term relocation" ;
+    rdfs:comment "Boolean flag indicating if the person is open to permanent or long-term relocation." ;
+    ax:includeInLookup "false"^^xsd:boolean ;
+    ax:doNotEnrich "false"^^xsd:boolean ;
+    skos:example "True", "False" .
+
+ax:shortTermRelocationFlag rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "open to short term relocation" ;
+    skos:altLabel "short term relocation", "temporary relocation" ;
+    rdfs:comment "Boolean flag indicating if the person is open to short-term or temporary relocation." ;
+    ax:includeInLookup "false"^^xsd:boolean ;
+    ax:doNotEnrich "false"^^xsd:boolean ;
+    skos:example "True", "False" .
+
+ax:travelInterestFlag rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "travel interest flag" ;
+    skos:altLabel "travel interest", "wants to travel" ;
+    rdfs:comment "Boolean flag indicating general interest in traveling for work." ;
+    ax:includeInLookup "false"^^xsd:boolean ;
+    ax:doNotEnrich "false"^^xsd:boolean ;
+    skos:example "True", "False" .
+
+ax:workPercentage rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "work percentage FTE" ;
+    skos:altLabel "FTE", "part time ratio", "utilization" ;
+    rdfs:comment "The Full-Time Equivalent (FTE) percentage (e.g., 100 for full time, 50 for half time)." ;
+    ax:includeInLookup "false"^^xsd:boolean ;
+    ax:doNotEnrich "true"^^xsd:boolean .
+
+ax:weeklyWorkingHours rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "weekly working hours" ;
+    skos:altLabel "hours per week", "working hours" ;
+    rdfs:comment "The expected standard weekly working hours for the person." ;
+    ax:includeInLookup "false"^^xsd:boolean ;
+    ax:doNotEnrich "true"^^xsd:boolean .
+
+ax:onshoreOffshoreIndicator rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "onshore offshore indicator" ;
+    skos:altLabel "onshore offshore", "resource location type" ;
+    rdfs:comment "Indicates if the resource is an onshore, nearshore, or offshore team member." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "EXACT_OR_LIKE" ;
+    ax:doNotEnrich "false"^^xsd:boolean ;
+    skos:example "Onshore", "Offshore", "Nearshore" .
+
+ax:accelerationCenterIndicator rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "acceleration center indicator" ;
+    skos:altLabel "AC indicator", "acceleration center" ;
+    rdfs:comment "Boolean/string indicator showing if the person belongs to an acceleration center." ;
+    ax:includeInLookup "true"^^xsd:boolean ;
+    ax:searchStrategy "EXACT_OR_LIKE" ;
+    ax:doNotEnrich "false"^^xsd:boolean ;
+    skos:example "Yes", "No" .
+
+# Temporal Edge/Node Dates
+ax:hireDate rdf:type owl:DatatypeProperty ;
+    rdfs:domain ax:Person ;
+    rdfs:label "hire date" ;
+    skos:altLabel "date joined", "start date", "tenure" ;
+    rdfs:comment "The date the person joined the firm. Format: YYYYMMDD." ;
+    ax:includeInLookup "false"^^xsd:boolean ;
+    ax:doNotEnrich "true"^^xsd:boolean .
+
+ax:startDate rdf:type owl:DatatypeProperty ;
+    ax:appliesToEdge ax:previouslyWorkedAt, ax:employed, ax:alumnusOf, ax:hasAlumnus ;
+    rdfs:label "start date" ;
+    skos:altLabel "started at", "beginning date" ;
+    rdfs:comment "The start date for an edge relationship (e.g., started working at past company, started degree)." ;
+    ax:includeInLookup "false"^^xsd:boolean ;
+    ax:doNotEnrich "true"^^xsd:boolean .
+
+ax:endDate rdf:type owl:DatatypeProperty ;
+    ax:appliesToEdge ax:previouslyWorkedAt, ax:employed ;
+    rdfs:label "end date" ;
+    skos:altLabel "left at", "ending date" ;
+    rdfs:comment "The end date for an edge relationship (e.g., left past company)." ;
+    ax:includeInLookup "false"^^xsd:boolean ;
+    ax:doNotEnrich "true"^^xsd:boolean .
+
+ax:completionDate rdf:type owl:DatatypeProperty ;
+    ax:appliesToEdge ax:alumnusOf, ax:hasAlumnus ;
+    rdfs:label "completion date" ;
+    skos:altLabel "graduated on", "degree date" ;
+    rdfs:comment "The date a degree or educational program was completed." ;
+    ax:includeInLookup "false"^^xsd:boolean ;
+    ax:doNotEnrich "true"^^xsd:boolean .
+
+ax:issueDate rdf:type owl:DatatypeProperty ;
+    ax:appliesToEdge ax:hasCertification, ax:isCertificationOf ;
+    rdfs:label "issue date" ;
+    skos:altLabel "certified on", "issued on" ;
+    rdfs:comment "The date a certification or credential was issued." ;
+    ax:includeInLookup "false"^^xsd:boolean ;
+    ax:doNotEnrich "true"^^xsd:boolean .
+
+ax:expirationDate rdf:type owl:DatatypeProperty ;
+    ax:appliesToEdge ax:hasCertification, ax:isCertificationOf ;
+    rdfs:label "expiration date" ;
+    skos:altLabel "expires on", "valid until" ;
+    rdfs:comment "The date a certification or credential expires." ;
+    ax:includeInLookup "false"^^xsd:boolean ;
+    ax:doNotEnrich "true"^^xsd:boolean .
+
+ax:dateNominated rdf:type owl:DatatypeProperty ;
+    ax:appliesToEdge ax:recognized, ax:recognizedBy ;
+    rdfs:label "date nominated" ;
+    skos:altLabel "awarded on", "date recognized" ;
+    rdfs:comment "The timestamp when a recognition or award was given." ;
+    ax:includeInLookup "false"^^xsd:boolean ;
+    ax:doNotEnrich "true"^^xsd:boolean .
+
+ax:lastAssessedDate rdf:type owl:DatatypeProperty ;
+    ax:appliesToEdge ax:speaksLanguage, ax:isSpokenBy ;
+    rdfs:label "last assessed date" ;
+    skos:altLabel "assessed on", "language tested on" ;
+    rdfs:comment "The timestamp when a language proficiency was last officially assessed." ;
+    ax:includeInLookup "false"^^xsd:boolean ;
+    ax:doNotEnrich "true"^^xsd:boolean .
+
+# ==============================================================================
+# 5. TEAMAGENT ARCHITECTURE COMMENTARY & EDUCATIONAL GUIDE
+# ==============================================================================
+# The following section explains the custom architectural directives defined at the
+# top of this ontology. These properties transform this file from a static semantic
+# map into the dynamic "Control Plane" for the entire TeamAgent system.
+#
+# --- 1. ax:includeInLookup ---
+# WHAT IT DOES: Acts as a trigger for the weekly Background Indexing Pipeline.
+# WHEN USED: Applied to DatatypeProperties (columns) that users might search for.
+# WHY WE BUILT IT: The LLM shouldn't guess where a string lives in the database.
+#   If this is "true", the Python pipeline automatically extracts all distinct values
+#   for this column from Spanner, generates Vertex AI embeddings (if needed), and
+#   upserts them into the Universal Lookup Table (ULT).
+#
+# --- 2. ax:searchStrategy ---
+# WHAT IT DOES: Tells the Resolver Agent *how* to query the ULT for this property.
+# WHEN USED: Required on any property where ax:includeInLookup is "true".
+#   - 'EXACT_OR_LIKE': Uses Spanner Native Search / B-Tree indexes.
+#   - 'SEMANTIC_VECTOR': Uses Cosine Distance Vector Search.
+# WHY WE BUILT IT: Vector math is expensive and terrible at exact name matching
+#   (it groups "John" and "Jon" weirdly, or clusters all names together). By explicitly
+#   splitting the strategy here, we save compute costs and increase name resolution
+#   accuracy to 100%, while keeping vector search for fuzzy concepts like "Cloud Expert".
+#
+# --- 3. ax:doNotEnrich ---
+# WHAT IT DOES: Controls the "Self-Healing Prompt" mechanism. (NOTE: This feature is intended for future use.)
+# WHEN USED: Applied to DatatypeProperties.
+#   - "false": Categorical fields (e.g., Staff Level). The pipeline will fetch the Top 5
+#              actual database values and inject them as `skos:example`.
+#   - "true": Unbounded text fields (e.g., Bios, Names).
+# WHY WE BUILT IT: The #1 reason LLM Text-to-SQL fails is "Categorical Hallucination"
+#   (e.g., querying `WHERE level = 'Consultant'` when the DB actually uses `Senior Associate`).
+#   By dynamically pulling real DB examples into the prompt, the LLM always writes perfect GQL.
+#
+# --- 4. ax:edgeFilter ---
+# WHAT IT DOES: Provides the hardcoded GQL WHERE clause for a specific edge.
+# WHEN USED: Applied to ObjectProperties that map to consolidated edge tables.
+# WHY WE BUILT IT: Spanner Property Graphs often use single, wide edge tables
+#   (like `ProfessionalConnection`) to represent many relationships (Manager, EA, Coach)
+#   distinguished only by a string column (`connectionType = 'DM'`). This directive hands
+#   the Executor Agent the exact SQL filter it needs so it never has to guess the schema.
+#
+# --- 5. ax:appliesToEdge ---
+# WHAT IT DOES: Binds a DatatypeProperty (column) directly to an ObjectProperty (Edge).
+# WHEN USED: Applied to properties that live on the Graph Edge rather than the Node
+#   (e.g., `isPrimary`, `skillLevel`, `startDate`).
+# WHY WE BUILT IT: Standard RDF/OWL (which this TTL file uses) was built for Triple-Stores,
+#   where edges cannot easily have their own properties. Spanner is a Property Graph,
+#   where edges *do* have properties. This directive bridges the gap, explicitly telling
+#   the Planner Agent which filters are available when traversing a specific edge.
+#
+# --- 6. ax:gqlEdgeLabel ---
+# WHAT IT DOES: Directly informs the Executor Agent what the physical Edge label is.
+# WHEN USED: Applied to all ObjectProperties.
+# WHY WE BUILT IT: Prevents the LLM from hallucinating edge names (e.g., writing
+#   `-[:hasSkill]->` instead of the physical Spanner label `-[:HAS_SKILL]->`).
+#
+# --- 7. ax:disambiguationDisplayContextTemplate ---
+# WHAT IT DOES: Provides a Python-style string format template for the ingestion pipeline.
+# WHEN USED: Applied to Classes (Graph Nodes).
+# WHY WE BUILT IT: Enables Human-in-the-loop disambiguation. The pipeline uses this string
+#   to compile a Spanner `CONCAT()` query when ingesting data into the ULT, allowing
+#   the UI to present rich context (e.g., "Alice Smith (Manager, Pasadena)") during a tie.
+# ==============================================================================
