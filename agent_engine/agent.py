@@ -10,9 +10,13 @@ from google.api_core.exceptions import InvalidArgument
 from google.adk.agents import LlmAgent
 from google.adk.tools import ToolContext
 from google.adk.tools.base_tool import BaseTool
+from google.adk.tools.google_tool import GoogleTool
+from google.adk.tools.spanner import utils as spanner_utils
+from google.adk.tools.spanner.settings import Capabilities, SpannerToolSettings, QueryResultMode
+from google.adk.tools.spanner.spanner_credentials import SpannerCredentialsConfig
+from google.auth.credentials import Credentials as BaseCredentials
 
 import google.auth
-import google.auth.transport.requests
 
 from .ontology_compiler import OntologyCompiler
 
@@ -74,6 +78,17 @@ def dynamic_token_injection(tool: BaseTool, args: Dict[str, Any], tool_context: 
 ontology_compiler = OntologyCompiler(Path(__file__).resolve().parent / 'ontology_file.ttl')
 ontology_summary = ontology_compiler.compile_summary()
 
+# Tool settings: read-only with dict_list mode for named column results
+tool_settings = SpannerToolSettings(
+    capabilities=[Capabilities.DATA_READ],
+    query_result_mode=QueryResultMode.DICT_LIST,
+)
+
+# ADC credentials for Spanner — both tools use the runtime SA for query execution.
+# User identity is resolved separately via the GE-injected token in tool_context.state.
+_adc, _ = google.auth.default()
+adc_credentials_config = SpannerCredentialsConfig(credentials=_adc)
+
 def _log_runtime_identity() -> None:
     """Log the runtime principal details used to create Spanner clients."""
     global runtime_identity_logged
@@ -115,7 +130,7 @@ def _log_runtime_identity() -> None:
 
 
 def _get_graph_store() -> SpannerGraphStore:
-    """Create the Spanner graph store lazily to avoid import-time DB calls."""
+    """Create the Spanner graph store lazily — used only for schema introspection."""
     global graph_store
     if graph_store is not None:
         return graph_store
@@ -149,18 +164,22 @@ def _get_physical_schema() -> str:
     physical_schema = _get_graph_store().get_schema
     return physical_schema
 
-def _run_gql_query(query: str) -> dict:
+def _run_gql_query(query: str, credentials: BaseCredentials, settings: SpannerToolSettings, tool_context: ToolContext) -> dict:
     logger.info(f">>> 🛠️ Tool: Query sent to Spanner Graph:\n{query}")
-    results = _get_graph_store().query(query)
-    if not results:
-        return {"status": "success", "result": "Query returned no rows."}
-
-    return {"status": "success", "result": json.dumps(results, indent=2)}
+    return spanner_utils.execute_sql(
+        project_id=GOOGLE_CLOUD_PROJECT,
+        instance_id=SPANNER_INSTANCE_ID,
+        database_id=SPANNER_DATABASE_ID,
+        query=query,
+        credentials=credentials,
+        settings=settings,
+        tool_context=tool_context,
+    )
 
 # ==========================================
 # 3. DEFINE THE TOOL
 # ==========================================
-def execute_gql(query: str) -> dict:
+def execute_gql(query: str, credentials: BaseCredentials, settings: SpannerToolSettings, tool_context: ToolContext) -> dict:
     """
     Executes a Spanner GQL query against the database.
     Input must be a valid GQL string.
@@ -211,9 +230,7 @@ def execute_gql(query: str) -> dict:
         _get_physical_schema()
         # --- 2. Query Execution ---
         # --- 3. Structured Result Formatting ---
-        # Return results as a JSON string for better machine readability by the LLM.
-        # This preserves the structure of the data (lists of dictionaries).
-        return _run_gql_query(query)
+        return _run_gql_query(query, credentials, settings, tool_context)
 
     # --- 4. Specific Error Handling ---
     # Catch specific API errors for more granular feedback.
@@ -241,15 +258,20 @@ def execute_gql(query: str) -> dict:
 # ==========================================
 # 4. DEFINE THE TOOL FOR USER INFO RETRIEVAL
 # ==========================================
-def execute_gql_for_current_user(query: str, tool_context: ToolContext) -> dict:
+def execute_gql_for_current_user(
+    query: str,
+    credentials: BaseCredentials,  # GoogleTool injects ADC credentials for Spanner
+    settings: SpannerToolSettings,  # GoogleTool injects
+    tool_context: ToolContext,       # GoogleTool injects
+) -> dict:
     """
     Runs a GQL query that is scoped to the signed-in user.
     The query must include the literal placeholder user_name,
     which will be replaced with the authenticated user's formatted name.
+    User identity is resolved via the GE-injected token in tool_context.state[AUTH_ID].
     """
     token = tool_context.state.get(AUTH_ID)
-    
-    # At this point, we have valid credentials. Make the API call.
+
     userinfo_endpoint = "https://www.googleapis.com/oauth2/v3/userinfo"
     headers = {"Authorization": f"Bearer {token}"}
     
@@ -290,7 +312,7 @@ def execute_gql_for_current_user(query: str, tool_context: ToolContext) -> dict:
         resolved_query = query.replace(USER_NAME_PLACEHOLDER, safe_name)
 
         logger.info(f">>> 🛠️ Tool: Resolved GQL for current user:\n{resolved_query}")
-        return execute_gql(resolved_query)
+        return execute_gql(resolved_query, credentials, settings, tool_context)
 
     except requests.RequestException as e:
         logger.error(f">>> 🛠️ Tool: Failed to retrieve user info: {str(e)}")
@@ -332,5 +354,16 @@ root_agent = LlmAgent(
     model="gemini-2.5-pro",
     name="knowledge_graph_agent",
     instruction=system_prompt,
-    tools=[execute_gql, execute_gql_for_current_user]
+    tools=[
+        GoogleTool(
+            func=execute_gql,
+            credentials_config=adc_credentials_config,
+            tool_settings=tool_settings,
+        ),
+        GoogleTool(
+            func=execute_gql_for_current_user,
+            credentials_config=adc_credentials_config,
+            tool_settings=tool_settings,
+        ),
+    ]
 )
