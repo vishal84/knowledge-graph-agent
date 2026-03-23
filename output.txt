@@ -1,0 +1,543 @@
+accessTuple:
+  conditionContext:
+    destination: {}
+    request: {}
+    resource: {}
+  fullResourceName: //spanner.googleapis.com/projects/adk-mcp-sandbox/instances/adk-graph/databases/people-graph
+  permission: spanner.sessions.create
+  permissionFqdn: spanner.googleapis.com/sessions.create
+  principal: service-1081386014792@gcp-sa-aiplatform-re.iam.gserviceaccount.com
+allowPolicyExplanation:
+  allowAccessState: ALLOW_ACCESS_STATE_GRANTED
+  explainedPolicies:
+  - allowAccessState: ALLOW_ACCESS_STATE_GRANTED
+    bindingExplanations:
+    - allowAccessState: ALLOW_ACCESS_STATE_GRANTED
+      combinedMembership:
+        membership: MEMBERSHIP_MATCHED
+        relevance: HEURISTIC_RELEVANCE_HIGH
+      memberships:
+        serviceAccount:1081386014792-compute@developer.gserviceaccount.com:
+          membership: MEMBERSHIP_NOT_MATCHED
+          relevance: HEURISTIC_RELEVANCE_NORMAL
+        serviceAccount:1081386014792@cloudbuild.gserviceaccount.com:
+          membership: MEMBERSHIP_NOT_MATCHED
+          relevance: HEURISTIC_RELEVANCE_NORMAL
+        serviceAccount:service-1081386014792@gcp-sa-aiplatform-re.iam.gserviceaccount.com:
+          membership: MEMBERSHIP_MATCHED
+          relevance: HEURISTIC_RELEVANCE_HIGH
+        serviceAccount:service-1081386014792@gcp-sa-aiplatform-vm.iam.gserviceaccount.com:
+          membership: MEMBERSHIP_NOT_MATCHED
+          relevance: HEURISTIC_RELEVANCE_NORMAL
+        serviceAccount:service-1081386014792@gcp-sa-aiplatform.iam.gserviceaccount.com:
+          membership: MEMBERSHIP_NOT_MATCHED
+          relevance: HEURISTIC_RELEVANCE_NORMAL
+      relevance: HEURISTIC_RELEVANCE_HIGH
+      role: roles/spanner.databaseUser
+      rolePermission: ROLE_PERMISSION_INCLUDED
+      rolePermissionRelevance: HEURISTIC_RELEVANCE_HIGH
+    fullResourceName: //spanner.googleapis.com/projects/adk-mcp-sandbox/instances/adk-graph/databases/people-graph
+    policy:
+      bindings:
+      - members:
+        - serviceAccount:1081386014792-compute@developer.gserviceaccount.com
+        - serviceAccount:1081386014792@cloudbuild.gserviceaccount.com
+        - serviceAccount:service-1081386014792@gcp-sa-aiplatform-re.iam.gserviceaccount.com
+        - serviceAccount:service-1081386014792@gcp-sa-aiplatform-vm.iam.gserviceaccount.com
+        - serviceAccount:service-1081386014792@gcp-sa-aiplatform.iam.gserviceaccount.com
+        role: roles/spanner.databaseUser
+      etag: BwZNoKyHiCM=
+      version: 1
+    relevance: HEURISTIC_RELEVANCE_HIGH
+  - allowAccessState: ALLOW_ACCESS_STATE_GRANTED
+    bindingExplanations:
+    - allowAccessState: ALLOW_ACCESS_STATE_GRANTED
+      combinedMembership:
+        membership: MEMBERSHIP_MATCHED
+        relevance: HEURISTIC_RELEVANCE_HIGH
+      memberships:
+        serviceAccount:service-1081386014792@gcp-sa-aiplatform-re.iam.gserviceaccount.com:
+          membership: MEMBERSHIP_MATCHED
+          relevance: HEURISTIC_RELEVANCE_HIGH
+      relevance: HEURISTIC_RELEVANCE_HIGH
+      role: roles/spanner.databaseUser
+      rolePermission: ROLE_PERMISSION_INCLUDED
+      rolePermissionRelevance: HEURISTIC_RELEVANCE_HIGH
+    fullResourceName: //spanner.googleapis.com/projects/adk-mcp-sandbox/instances/adk-graph
+    policy:
+      bindings:
+      - members:
+        - serviceAccount:service-1081386014792@gcp-sa-aiplatform-re.iam.gserviceaccount.com
+        role: roles/spanner.databaseUser
+      etag: BwZNoKy807k=
+      version: 1
+    relevance: HEURISTIC_RELEVANCE_HIGH
+  - allowAccessState: ALLOW_ACCESS_STATE_GRANTED
+    bindingExplanations:
+    - allowAccessState: ALLOW_ACCESS_STATE_NOT_GRANTED
+      combinedMembership:
+        membership: MEMBERSHIP_NOT_MATCHED
+        relevance: HEURISTIC_RELEVANCE_NORMAL
+      memberships:
+        serviceAccount:service-1081386014792@gcp-sa-vertex-nb.iam.gserviceaccount.com:
+          membership: MEMBERSHIP_NOT_MATCHED
+          relevance: HEURISTIC_RELEVANCE_NORMAL
+      relevance: HEURISTIC_RELEVANCE_NORMAL
+      role: roles/aiplatform.colabServiceAgent
+      rolePermission: ROLE_PERMISSION_NOT_INCLUDED
+      rolePermissionRelevance: HEURISTIC_RELEVANCE_NORMAL
+    - allowAccessState: ALLOW_ACCESS_STATE_NOT_GRANTED
+      combinedMembership:
+        membership: MEMBERSHIP_NOT_MATCHED
+        relevance: HEURISTIC_RELEVANCE_NORMAL
+      memberships:
+        serviceAccount:service-1081386014792@gcp-sa-aiplatform-vm.iam.gserviceaccount.com:
+          membership: MEMBERSHIP_NOT_MATCHED
+          relevance: HEURISTIC_RELEVANCE_NORMAL
+      relevance: HEURISTIC_RELEVANCE_NORMAL
+      role: roles/aiplatform.notebookServiceAgent
+      rolePermission: ROLE_PERMISSION_NOT_INCLUDED
+      rolePermissionRelevance: HEURISTIC_RELEVANCE_NORMAL
+    - allowAccessState: ALLOW_ACCESS_STATE_NOT_GRANTED
+      combinedMembership:
+        membership: MEMBERSHIP_MATCHED
+        relevance: HEURISTIC_RELEVANCE_NORMAL
+      memberships:
+        serviceAccount:service-1081386014792@gcp-sa-aiplatform-re.iam.gserviceaccount.com:
+          membership: MEMBERSHIP_MATCHED
+          relevance: HEURISTIC_RELEVANCE_NORMAL
+      relevance: HEURISTIC_RELEVANCE_NORMAL
+      role: roles/aiplatform.reasoningEngineServiceAgent
+      rolePermission: ROLE_PERMISSION_NOT_INCLUDED
+      rolePermissionRelevance: HEURISTIC_RELEVANCE_NORMAL
+    - allowAccessState: ALLOW_ACCESS_STATE_NOT_GRANTED
+      combinedMembership:
+        membership: MEMBERSHIP_NOT_MATCHED
+        relevance: HEURISTIC_RELEVANCE_NORMAL
+      memberships:
+        serviceAccount:service-1081386014792@gcp-sa-aiplatform.iam.gserviceaccount.com:
+          membership: MEMBERSHIP_NOT_MATCHED
+          relevance: HEURISTIC_RELEVANCE_NORMAL
+      relevance: HEURISTIC_RELEVANCE_NORMAL
+      role: roles/aiplatform.serviceAgent
+      rolePermission: ROLE_PERMISSION_NOT_INCLUDED
+      rolePermissionRelevance: HEURISTIC_RELEVANCE_NORMAL
+    - allowAccessState: ALLOW_ACCESS_STATE_NOT_GRANTED
+      combinedMembership:
+        membership: MEMBERSHIP_NOT_MATCHED
+        relevance: HEURISTIC_RELEVANCE_NORMAL
+      memberships:
+        serviceAccount:1081386014792-compute@developer.gserviceaccount.com:
+          membership: MEMBERSHIP_NOT_MATCHED
+          relevance: HEURISTIC_RELEVANCE_NORMAL
+      relevance: HEURISTIC_RELEVANCE_NORMAL
+      role: roles/aiplatform.user
+      rolePermission: ROLE_PERMISSION_NOT_INCLUDED
+      rolePermissionRelevance: HEURISTIC_RELEVANCE_NORMAL
+    - allowAccessState: ALLOW_ACCESS_STATE_NOT_GRANTED
+      combinedMembership:
+        membership: MEMBERSHIP_NOT_MATCHED
+        relevance: HEURISTIC_RELEVANCE_NORMAL
+      memberships:
+        serviceAccount:service-1081386014792@gcp-sa-artifactregistry.iam.gserviceaccount.com:
+          membership: MEMBERSHIP_NOT_MATCHED
+          relevance: HEURISTIC_RELEVANCE_NORMAL
+      relevance: HEURISTIC_RELEVANCE_NORMAL
+      role: roles/artifactregistry.serviceAgent
+      rolePermission: ROLE_PERMISSION_NOT_INCLUDED
+      rolePermissionRelevance: HEURISTIC_RELEVANCE_NORMAL
+    - allowAccessState: ALLOW_ACCESS_STATE_NOT_GRANTED
+      combinedMembership:
+        membership: MEMBERSHIP_NOT_MATCHED
+        relevance: HEURISTIC_RELEVANCE_NORMAL
+      memberships:
+        serviceAccount:1081386014792-compute@developer.gserviceaccount.com:
+          membership: MEMBERSHIP_NOT_MATCHED
+          relevance: HEURISTIC_RELEVANCE_NORMAL
+        serviceAccount:1081386014792@cloudbuild.gserviceaccount.com:
+          membership: MEMBERSHIP_NOT_MATCHED
+          relevance: HEURISTIC_RELEVANCE_NORMAL
+      relevance: HEURISTIC_RELEVANCE_NORMAL
+      role: roles/artifactregistry.writer
+      rolePermission: ROLE_PERMISSION_NOT_INCLUDED
+      rolePermissionRelevance: HEURISTIC_RELEVANCE_NORMAL
+    - allowAccessState: ALLOW_ACCESS_STATE_NOT_GRANTED
+      combinedMembership:
+        membership: MEMBERSHIP_NOT_MATCHED
+        relevance: HEURISTIC_RELEVANCE_NORMAL
+      memberships:
+        serviceAccount:service-1081386014792@gcp-sa-cloudaicompanion.iam.gserviceaccount.com:
+          membership: MEMBERSHIP_NOT_MATCHED
+          relevance: HEURISTIC_RELEVANCE_NORMAL
+      relevance: HEURISTIC_RELEVANCE_NORMAL
+      role: roles/cloudaicompanion.serviceAgent
+      rolePermission: ROLE_PERMISSION_NOT_INCLUDED
+      rolePermissionRelevance: HEURISTIC_RELEVANCE_NORMAL
+    - allowAccessState: ALLOW_ACCESS_STATE_NOT_GRANTED
+      combinedMembership:
+        membership: MEMBERSHIP_NOT_MATCHED
+        relevance: HEURISTIC_RELEVANCE_NORMAL
+      memberships:
+        serviceAccount:1081386014792@cloudbuild.gserviceaccount.com:
+          membership: MEMBERSHIP_NOT_MATCHED
+          relevance: HEURISTIC_RELEVANCE_NORMAL
+      relevance: HEURISTIC_RELEVANCE_NORMAL
+      role: roles/cloudbuild.builds.builder
+      rolePermission: ROLE_PERMISSION_NOT_INCLUDED
+      rolePermissionRelevance: HEURISTIC_RELEVANCE_NORMAL
+    - allowAccessState: ALLOW_ACCESS_STATE_NOT_GRANTED
+      combinedMembership:
+        membership: MEMBERSHIP_NOT_MATCHED
+        relevance: HEURISTIC_RELEVANCE_NORMAL
+      memberships:
+        serviceAccount:service-1081386014792@gcp-sa-cloudbuild.iam.gserviceaccount.com:
+          membership: MEMBERSHIP_NOT_MATCHED
+          relevance: HEURISTIC_RELEVANCE_NORMAL
+      relevance: HEURISTIC_RELEVANCE_NORMAL
+      role: roles/cloudbuild.serviceAgent
+      rolePermission: ROLE_PERMISSION_NOT_INCLUDED
+      rolePermissionRelevance: HEURISTIC_RELEVANCE_NORMAL
+    - allowAccessState: ALLOW_ACCESS_STATE_NOT_GRANTED
+      combinedMembership:
+        membership: MEMBERSHIP_NOT_MATCHED
+        relevance: HEURISTIC_RELEVANCE_NORMAL
+      memberships:
+        serviceAccount:1081386014792@cloudservices.gserviceaccount.com:
+          membership: MEMBERSHIP_NOT_MATCHED
+          relevance: HEURISTIC_RELEVANCE_NORMAL
+      relevance: HEURISTIC_RELEVANCE_NORMAL
+      role: roles/compute.instanceGroupManagerServiceAgent
+      rolePermission: ROLE_PERMISSION_NOT_INCLUDED
+      rolePermissionRelevance: HEURISTIC_RELEVANCE_NORMAL
+    - allowAccessState: ALLOW_ACCESS_STATE_NOT_GRANTED
+      combinedMembership:
+        membership: MEMBERSHIP_NOT_MATCHED
+        relevance: HEURISTIC_RELEVANCE_NORMAL
+      memberships:
+        serviceAccount:service-1081386014792@compute-system.iam.gserviceaccount.com:
+          membership: MEMBERSHIP_NOT_MATCHED
+          relevance: HEURISTIC_RELEVANCE_NORMAL
+      relevance: HEURISTIC_RELEVANCE_NORMAL
+      role: roles/compute.serviceAgent
+      rolePermission: ROLE_PERMISSION_NOT_INCLUDED
+      rolePermissionRelevance: HEURISTIC_RELEVANCE_NORMAL
+    - allowAccessState: ALLOW_ACCESS_STATE_NOT_GRANTED
+      combinedMembership:
+        membership: MEMBERSHIP_NOT_MATCHED
+        relevance: HEURISTIC_RELEVANCE_NORMAL
+      memberships:
+        serviceAccount:service-1081386014792@containerregistry.iam.gserviceaccount.com:
+          membership: MEMBERSHIP_NOT_MATCHED
+          relevance: HEURISTIC_RELEVANCE_NORMAL
+      relevance: HEURISTIC_RELEVANCE_NORMAL
+      role: roles/containerregistry.ServiceAgent
+      rolePermission: ROLE_PERMISSION_NOT_INCLUDED
+      rolePermissionRelevance: HEURISTIC_RELEVANCE_NORMAL
+    - allowAccessState: ALLOW_ACCESS_STATE_NOT_GRANTED
+      combinedMembership:
+        membership: MEMBERSHIP_NOT_MATCHED
+        relevance: HEURISTIC_RELEVANCE_NORMAL
+      memberships:
+        serviceAccount:service-1081386014792@gcp-sa-dataform.iam.gserviceaccount.com:
+          membership: MEMBERSHIP_NOT_MATCHED
+          relevance: HEURISTIC_RELEVANCE_NORMAL
+      relevance: HEURISTIC_RELEVANCE_NORMAL
+      role: roles/dataform.serviceAgent
+      rolePermission: ROLE_PERMISSION_NOT_INCLUDED
+      rolePermissionRelevance: HEURISTIC_RELEVANCE_NORMAL
+    - allowAccessState: ALLOW_ACCESS_STATE_NOT_GRANTED
+      combinedMembership:
+        membership: MEMBERSHIP_NOT_MATCHED
+        relevance: HEURISTIC_RELEVANCE_NORMAL
+      memberships:
+        serviceAccount:service-1081386014792@gcp-sa-discoveryengine.iam.gserviceaccount.com:
+          membership: MEMBERSHIP_NOT_MATCHED
+          relevance: HEURISTIC_RELEVANCE_NORMAL
+      relevance: HEURISTIC_RELEVANCE_NORMAL
+      role: roles/discoveryengine.serviceAgent
+      rolePermission: ROLE_PERMISSION_INCLUDED
+      rolePermissionRelevance: HEURISTIC_RELEVANCE_HIGH
+    - allowAccessState: ALLOW_ACCESS_STATE_NOT_GRANTED
+      combinedMembership:
+        membership: MEMBERSHIP_NOT_MATCHED
+        relevance: HEURISTIC_RELEVANCE_NORMAL
+      memberships:
+        serviceAccount:1081386014792-compute@developer.gserviceaccount.com:
+          membership: MEMBERSHIP_NOT_MATCHED
+          relevance: HEURISTIC_RELEVANCE_NORMAL
+      relevance: HEURISTIC_RELEVANCE_NORMAL
+      role: roles/discoveryengine.user
+      rolePermission: ROLE_PERMISSION_NOT_INCLUDED
+      rolePermissionRelevance: HEURISTIC_RELEVANCE_NORMAL
+    - allowAccessState: ALLOW_ACCESS_STATE_NOT_GRANTED
+      combinedMembership:
+        membership: MEMBERSHIP_NOT_MATCHED
+        relevance: HEURISTIC_RELEVANCE_NORMAL
+      memberships:
+        serviceAccount:1081386014792-compute@developer.gserviceaccount.com:
+          membership: MEMBERSHIP_NOT_MATCHED
+          relevance: HEURISTIC_RELEVANCE_NORMAL
+        serviceAccount:1081386014792@cloudbuild.gserviceaccount.com:
+          membership: MEMBERSHIP_NOT_MATCHED
+          relevance: HEURISTIC_RELEVANCE_NORMAL
+      relevance: HEURISTIC_RELEVANCE_NORMAL
+      role: roles/iam.serviceAccountUser
+      rolePermission: ROLE_PERMISSION_NOT_INCLUDED
+      rolePermissionRelevance: HEURISTIC_RELEVANCE_NORMAL
+    - allowAccessState: ALLOW_ACCESS_STATE_NOT_GRANTED
+      combinedMembership:
+        membership: MEMBERSHIP_NOT_MATCHED
+        relevance: HEURISTIC_RELEVANCE_NORMAL
+      condition:
+        expression: resource.name.endsWith('locations/us-central1/buckets/reserved_vpc_sc_dashboard_log_router')
+        title: serviceAccount:service-org-598411176987@gcp-sa-logging.iam.gserviceaccount.com
+      conditionExplanation:
+        evaluationStates:
+        - end: 92
+          value: false
+        value: false
+      memberships:
+        serviceAccount:service-org-598411176987@gcp-sa-logging.iam.gserviceaccount.com:
+          membership: MEMBERSHIP_NOT_MATCHED
+          relevance: HEURISTIC_RELEVANCE_NORMAL
+      relevance: HEURISTIC_RELEVANCE_NORMAL
+      role: roles/logging.bucketWriter
+      rolePermission: ROLE_PERMISSION_NOT_INCLUDED
+      rolePermissionRelevance: HEURISTIC_RELEVANCE_NORMAL
+    - allowAccessState: ALLOW_ACCESS_STATE_NOT_GRANTED
+      combinedMembership:
+        membership: MEMBERSHIP_MATCHED
+        relevance: HEURISTIC_RELEVANCE_NORMAL
+      memberships:
+        serviceAccount:1081386014792-compute@developer.gserviceaccount.com:
+          membership: MEMBERSHIP_NOT_MATCHED
+          relevance: HEURISTIC_RELEVANCE_NORMAL
+        serviceAccount:1081386014792@cloudbuild.gserviceaccount.com:
+          membership: MEMBERSHIP_NOT_MATCHED
+          relevance: HEURISTIC_RELEVANCE_NORMAL
+        serviceAccount:code-snippet-sa@adk-mcp-sandbox.iam.gserviceaccount.com:
+          membership: MEMBERSHIP_NOT_MATCHED
+          relevance: HEURISTIC_RELEVANCE_NORMAL
+        serviceAccount:service-1081386014792@gcp-sa-aiplatform-re.iam.gserviceaccount.com:
+          membership: MEMBERSHIP_MATCHED
+          relevance: HEURISTIC_RELEVANCE_NORMAL
+      relevance: HEURISTIC_RELEVANCE_NORMAL
+      role: roles/logging.logWriter
+      rolePermission: ROLE_PERMISSION_NOT_INCLUDED
+      rolePermissionRelevance: HEURISTIC_RELEVANCE_NORMAL
+    - allowAccessState: ALLOW_ACCESS_STATE_GRANTED
+      combinedMembership:
+        membership: MEMBERSHIP_MATCHED
+        relevance: HEURISTIC_RELEVANCE_HIGH
+      memberships:
+        serviceAccount:service-1081386014792@gcp-sa-aiplatform-re.iam.gserviceaccount.com:
+          membership: MEMBERSHIP_MATCHED
+          relevance: HEURISTIC_RELEVANCE_HIGH
+        user:vishal@vishalapatel.altostrat.com:
+          membership: MEMBERSHIP_NOT_MATCHED
+          relevance: HEURISTIC_RELEVANCE_NORMAL
+      relevance: HEURISTIC_RELEVANCE_HIGH
+      role: roles/owner
+      rolePermission: ROLE_PERMISSION_INCLUDED
+      rolePermissionRelevance: HEURISTIC_RELEVANCE_HIGH
+    - allowAccessState: ALLOW_ACCESS_STATE_NOT_GRANTED
+      combinedMembership:
+        membership: MEMBERSHIP_NOT_MATCHED
+        relevance: HEURISTIC_RELEVANCE_NORMAL
+      memberships:
+        serviceAccount:service-1081386014792@gcp-sa-pubsub.iam.gserviceaccount.com:
+          membership: MEMBERSHIP_NOT_MATCHED
+          relevance: HEURISTIC_RELEVANCE_NORMAL
+      relevance: HEURISTIC_RELEVANCE_NORMAL
+      role: roles/pubsub.serviceAgent
+      rolePermission: ROLE_PERMISSION_NOT_INCLUDED
+      rolePermissionRelevance: HEURISTIC_RELEVANCE_NORMAL
+    - allowAccessState: ALLOW_ACCESS_STATE_NOT_GRANTED
+      combinedMembership:
+        membership: MEMBERSHIP_NOT_MATCHED
+        relevance: HEURISTIC_RELEVANCE_NORMAL
+      memberships:
+        serviceAccount:1081386014792-compute@developer.gserviceaccount.com:
+          membership: MEMBERSHIP_NOT_MATCHED
+          relevance: HEURISTIC_RELEVANCE_NORMAL
+        serviceAccount:1081386014792@cloudbuild.gserviceaccount.com:
+          membership: MEMBERSHIP_NOT_MATCHED
+          relevance: HEURISTIC_RELEVANCE_NORMAL
+      relevance: HEURISTIC_RELEVANCE_NORMAL
+      role: roles/run.admin
+      rolePermission: ROLE_PERMISSION_NOT_INCLUDED
+      rolePermissionRelevance: HEURISTIC_RELEVANCE_NORMAL
+    - allowAccessState: ALLOW_ACCESS_STATE_NOT_GRANTED
+      combinedMembership:
+        membership: MEMBERSHIP_MATCHED
+        relevance: HEURISTIC_RELEVANCE_NORMAL
+      memberships:
+        serviceAccount:code-snippet-sa@adk-mcp-sandbox.iam.gserviceaccount.com:
+          membership: MEMBERSHIP_NOT_MATCHED
+          relevance: HEURISTIC_RELEVANCE_NORMAL
+        serviceAccount:service-1081386014792@gcp-sa-aiplatform-re.iam.gserviceaccount.com:
+          membership: MEMBERSHIP_MATCHED
+          relevance: HEURISTIC_RELEVANCE_NORMAL
+      relevance: HEURISTIC_RELEVANCE_NORMAL
+      role: roles/run.invoker
+      rolePermission: ROLE_PERMISSION_NOT_INCLUDED
+      rolePermissionRelevance: HEURISTIC_RELEVANCE_NORMAL
+    - allowAccessState: ALLOW_ACCESS_STATE_NOT_GRANTED
+      combinedMembership:
+        membership: MEMBERSHIP_NOT_MATCHED
+        relevance: HEURISTIC_RELEVANCE_NORMAL
+      memberships:
+        serviceAccount:service-1081386014792@serverless-robot-prod.iam.gserviceaccount.com:
+          membership: MEMBERSHIP_NOT_MATCHED
+          relevance: HEURISTIC_RELEVANCE_NORMAL
+      relevance: HEURISTIC_RELEVANCE_NORMAL
+      role: roles/run.serviceAgent
+      rolePermission: ROLE_PERMISSION_NOT_INCLUDED
+      rolePermissionRelevance: HEURISTIC_RELEVANCE_NORMAL
+    - allowAccessState: ALLOW_ACCESS_STATE_GRANTED
+      combinedMembership:
+        membership: MEMBERSHIP_MATCHED
+        relevance: HEURISTIC_RELEVANCE_HIGH
+      memberships:
+        serviceAccount:service-1081386014792@gcp-sa-aiplatform-re.iam.gserviceaccount.com:
+          membership: MEMBERSHIP_MATCHED
+          relevance: HEURISTIC_RELEVANCE_HIGH
+        serviceAccount:service-1081386014792@gcp-sa-aiplatform.iam.gserviceaccount.com:
+          membership: MEMBERSHIP_NOT_MATCHED
+          relevance: HEURISTIC_RELEVANCE_NORMAL
+      relevance: HEURISTIC_RELEVANCE_HIGH
+      role: roles/spanner.databaseUser
+      rolePermission: ROLE_PERMISSION_INCLUDED
+      rolePermissionRelevance: HEURISTIC_RELEVANCE_HIGH
+    - allowAccessState: ALLOW_ACCESS_STATE_NOT_GRANTED
+      combinedMembership:
+        membership: MEMBERSHIP_NOT_MATCHED
+        relevance: HEURISTIC_RELEVANCE_NORMAL
+      memberships:
+        serviceAccount:1081386014792-compute@developer.gserviceaccount.com:
+          membership: MEMBERSHIP_NOT_MATCHED
+          relevance: HEURISTIC_RELEVANCE_NORMAL
+        serviceAccount:1081386014792@cloudbuild.gserviceaccount.com:
+          membership: MEMBERSHIP_NOT_MATCHED
+          relevance: HEURISTIC_RELEVANCE_NORMAL
+      relevance: HEURISTIC_RELEVANCE_NORMAL
+      role: roles/storage.objectViewer
+      rolePermission: ROLE_PERMISSION_NOT_INCLUDED
+      rolePermissionRelevance: HEURISTIC_RELEVANCE_NORMAL
+    fullResourceName: //cloudresourcemanager.googleapis.com/projects/adk-mcp-sandbox
+    policy:
+      auditConfigs:
+      - auditLogConfigs:
+        - logType: ADMIN_READ
+        - logType: DATA_READ
+        - logType: DATA_WRITE
+        service: spanner.googleapis.com
+      - auditLogConfigs:
+        - logType: ADMIN_READ
+        - logType: DATA_READ
+        - logType: DATA_WRITE
+        service: discoveryengine.googleapis.com
+      bindings:
+      - members:
+        - serviceAccount:service-1081386014792@gcp-sa-vertex-nb.iam.gserviceaccount.com
+        role: roles/aiplatform.colabServiceAgent
+      - members:
+        - serviceAccount:service-1081386014792@gcp-sa-aiplatform-vm.iam.gserviceaccount.com
+        role: roles/aiplatform.notebookServiceAgent
+      - members:
+        - serviceAccount:service-1081386014792@gcp-sa-aiplatform-re.iam.gserviceaccount.com
+        role: roles/aiplatform.reasoningEngineServiceAgent
+      - members:
+        - serviceAccount:service-1081386014792@gcp-sa-aiplatform.iam.gserviceaccount.com
+        role: roles/aiplatform.serviceAgent
+      - members:
+        - serviceAccount:1081386014792-compute@developer.gserviceaccount.com
+        role: roles/aiplatform.user
+      - members:
+        - serviceAccount:service-1081386014792@gcp-sa-artifactregistry.iam.gserviceaccount.com
+        role: roles/artifactregistry.serviceAgent
+      - members:
+        - serviceAccount:1081386014792-compute@developer.gserviceaccount.com
+        - serviceAccount:1081386014792@cloudbuild.gserviceaccount.com
+        role: roles/artifactregistry.writer
+      - members:
+        - serviceAccount:service-1081386014792@gcp-sa-cloudaicompanion.iam.gserviceaccount.com
+        role: roles/cloudaicompanion.serviceAgent
+      - members:
+        - serviceAccount:1081386014792@cloudbuild.gserviceaccount.com
+        role: roles/cloudbuild.builds.builder
+      - members:
+        - serviceAccount:service-1081386014792@gcp-sa-cloudbuild.iam.gserviceaccount.com
+        role: roles/cloudbuild.serviceAgent
+      - members:
+        - serviceAccount:1081386014792@cloudservices.gserviceaccount.com
+        role: roles/compute.instanceGroupManagerServiceAgent
+      - members:
+        - serviceAccount:service-1081386014792@compute-system.iam.gserviceaccount.com
+        role: roles/compute.serviceAgent
+      - members:
+        - serviceAccount:service-1081386014792@containerregistry.iam.gserviceaccount.com
+        role: roles/containerregistry.ServiceAgent
+      - members:
+        - serviceAccount:service-1081386014792@gcp-sa-dataform.iam.gserviceaccount.com
+        role: roles/dataform.serviceAgent
+      - members:
+        - serviceAccount:service-1081386014792@gcp-sa-discoveryengine.iam.gserviceaccount.com
+        role: roles/discoveryengine.serviceAgent
+      - members:
+        - serviceAccount:1081386014792-compute@developer.gserviceaccount.com
+        role: roles/discoveryengine.user
+      - members:
+        - serviceAccount:1081386014792-compute@developer.gserviceaccount.com
+        - serviceAccount:1081386014792@cloudbuild.gserviceaccount.com
+        role: roles/iam.serviceAccountUser
+      - condition:
+          expression: resource.name.endsWith('locations/us-central1/buckets/reserved_vpc_sc_dashboard_log_router')
+          title: serviceAccount:service-org-598411176987@gcp-sa-logging.iam.gserviceaccount.com
+        members:
+        - serviceAccount:service-org-598411176987@gcp-sa-logging.iam.gserviceaccount.com
+        role: roles/logging.bucketWriter
+      - members:
+        - serviceAccount:1081386014792-compute@developer.gserviceaccount.com
+        - serviceAccount:1081386014792@cloudbuild.gserviceaccount.com
+        - serviceAccount:code-snippet-sa@adk-mcp-sandbox.iam.gserviceaccount.com
+        - serviceAccount:service-1081386014792@gcp-sa-aiplatform-re.iam.gserviceaccount.com
+        role: roles/logging.logWriter
+      - members:
+        - serviceAccount:service-1081386014792@gcp-sa-aiplatform-re.iam.gserviceaccount.com
+        - user:vishal@vishalapatel.altostrat.com
+        role: roles/owner
+      - members:
+        - serviceAccount:service-1081386014792@gcp-sa-pubsub.iam.gserviceaccount.com
+        role: roles/pubsub.serviceAgent
+      - members:
+        - serviceAccount:1081386014792-compute@developer.gserviceaccount.com
+        - serviceAccount:1081386014792@cloudbuild.gserviceaccount.com
+        role: roles/run.admin
+      - members:
+        - serviceAccount:code-snippet-sa@adk-mcp-sandbox.iam.gserviceaccount.com
+        - serviceAccount:service-1081386014792@gcp-sa-aiplatform-re.iam.gserviceaccount.com
+        role: roles/run.invoker
+      - members:
+        - serviceAccount:service-1081386014792@serverless-robot-prod.iam.gserviceaccount.com
+        role: roles/run.serviceAgent
+      - members:
+        - serviceAccount:service-1081386014792@gcp-sa-aiplatform-re.iam.gserviceaccount.com
+        - serviceAccount:service-1081386014792@gcp-sa-aiplatform.iam.gserviceaccount.com
+        role: roles/spanner.databaseUser
+      - members:
+        - serviceAccount:1081386014792-compute@developer.gserviceaccount.com
+        - serviceAccount:1081386014792@cloudbuild.gserviceaccount.com
+        role: roles/storage.objectViewer
+      etag: BwZNsVgHRKA=
+      version: 3
+    relevance: HEURISTIC_RELEVANCE_HIGH
+  - allowAccessState: ALLOW_ACCESS_STATE_UNKNOWN_INFO
+    policy: {}
+    relevance: HEURISTIC_RELEVANCE_NORMAL
+  relevance: HEURISTIC_RELEVANCE_HIGH
+denyPolicyExplanation:
+  denyAccessState: DENY_ACCESS_STATE_NOT_DENIED
+  permissionDeniable: true
+  relevance: HEURISTIC_RELEVANCE_HIGH
+overallAccessState: CAN_ACCESS

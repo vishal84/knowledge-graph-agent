@@ -1,0 +1,34 @@
+{
+  "protocolVersion": "1.0",
+  "url": "https://knowledge-graph-agent-1081386014792.us-central1.run.app/a2a/knowledge_graph_agent",
+  "provider": {
+    "organization": "adk-mcp-sandbox",
+    "url": "https://knowledge-graph-agent-1081386014792.us-central1.run.app"
+  },
+  "name": "knowledge-graph-agent",
+  "description": "An ADK agent that returns fictitious information from a people graph hosted on Spanner.",
+  "capabilities": {},
+  "defaultInputModes": [
+    "text/plain"
+  ],
+  "defaultOutputModes": [
+    "text/plain"
+  ],
+  "skills": [
+    {
+      "id": "graph_query",
+      "name": "Knowledge Graph Query",
+      "description": "Answer questions about people, skills, and teams from a Spanner graph.",
+      "examples": [
+        "Who has Java skills?",
+        "What team is Alice on?"
+      ],
+      "tags": [
+        "graph",
+        "spanner",
+        "knowledge"
+      ]
+    }
+  ],
+  "version": "1.0.0"
+}

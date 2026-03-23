@@ -14,14 +14,12 @@ from google.api_core.exceptions import InvalidArgument
 from google.cloud import spanner
 from langchain_google_spanner import SpannerGraphStore
 
-from .ontology_compiler import OntologyCompiler
+from ontology_compiler import OntologyCompiler
 
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Cloud Run supplies environment variables at runtime. Do not rely on a local
-# .env file in this deploy-specific package.
 AUTH_ID = os.getenv("AUTH_ID")
 GOOGLE_CLOUD_PROJECT = os.getenv("GOOGLE_CLOUD_PROJECT")
 
@@ -36,6 +34,28 @@ graph_store: Optional[SpannerGraphStore] = None
 physical_schema: Optional[str] = None
 
 
+def _resolve_access_token(tool_context: ToolContext) -> Optional[str]:
+    if not AUTH_ID:
+        return None
+
+    direct_token = tool_context.state.get(AUTH_ID)
+    if direct_token:
+        return direct_token
+
+    try:
+        state_dict = tool_context.state.to_dict()
+    except Exception:
+        return None
+
+    pattern = re.compile(rf"^{re.escape(AUTH_ID)}")
+    for key, value in state_dict.items():
+        if pattern.match(str(key)) and value:
+            tool_context.state[AUTH_ID] = value
+            return value
+
+    return None
+
+
 def dynamic_token_injection(tool: BaseTool, args: Dict[str, Any], tool_context: ToolContext) -> Optional[Dict]:
     token_key = None
     pattern = re.compile(f"{AUTH_ID}.*") if AUTH_ID else None
@@ -46,7 +66,7 @@ def dynamic_token_injection(tool: BaseTool, args: Dict[str, Any], tool_context: 
     else:
         matched_auth = {}
 
-    if len(matched_auth) > 0:
+    if matched_auth:
         token_key = list(matched_auth.keys())[0]
     else:
         logger.info("No valid tokens found")
@@ -58,7 +78,7 @@ def dynamic_token_injection(tool: BaseTool, args: Dict[str, Any], tool_context: 
     return None
 
 
-ontology_compiler = OntologyCompiler(Path(__file__).resolve().parent / "ontology_file.ttl")
+ontology_compiler = OntologyCompiler(Path(__file__).resolve().parent.parent / "ontology_file.ttl")
 ontology_summary = ontology_compiler.compile_summary()
 
 
@@ -159,7 +179,16 @@ def execute_gql(query: str) -> dict:
 
 
 def execute_gql_for_current_user(query: str, tool_context: ToolContext) -> dict:
-    token = tool_context.state.get(AUTH_ID)
+    token = _resolve_access_token(tool_context)
+    if not token:
+        return {
+            "status": "error",
+            "message": (
+                "No end-user auth token was found for this request. "
+                "Please sign in to Gemini Enterprise and retry."
+            ),
+        }
+
     userinfo_endpoint = "https://www.googleapis.com/oauth2/v3/userinfo"
     headers = {"Authorization": f"Bearer {token}"}
 
