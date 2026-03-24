@@ -4,20 +4,19 @@ import json
 import logging
 import requests
 from pathlib import Path
-from typing import Tuple, Optional
 from google.api_core.exceptions import InvalidArgument
 
 from google.adk.agents import LlmAgent
 from google.adk.tools import ToolContext
-from google.adk.auth import AuthConfig
-from google.genai.types import Part
+from google.adk.tools.google_tool import GoogleTool
+from google.adk.tools.spanner import utils as spanner_utils
+from google.adk.tools.spanner.settings import Capabilities, SpannerToolSettings, QueryResultMode
+from google.adk.tools.spanner.spanner_credentials import SpannerCredentialsConfig
+from google.auth.credentials import Credentials as BaseCredentials
 
 import google.auth
-import google.auth.transport.requests
-from google.oauth2.credentials import Credentials
 
 from .ontology_compiler import OntologyCompiler
-from .oauth_helper import get_user_credentials
 
 from langchain_google_spanner import SpannerGraphStore
 from google.cloud import spanner
@@ -50,43 +49,62 @@ USER_NAME_PLACEHOLDER = "user_name"
 ontology_compiler = OntologyCompiler(Path(__file__).parent.parent / 'ontology_file.ttl')
 ontology_summary = ontology_compiler.compile_summary()
 
-# Get user credentails for Spanner access
-credentials, _ = google.auth.default()
-request = google.auth.transport.requests.Request()
-credentials.refresh(request)
-logger.info(f"Obtained access token for Spanner authentication: {credentials.token}...")
+# Tool settings: read-only with dict_list mode for named column results
+tool_settings = SpannerToolSettings(
+    capabilities=[Capabilities.DATA_READ],
+    query_result_mode=QueryResultMode.DICT_LIST,
+)
+
+# ADC credentials for execute_gql (no user auth required)
+_adc, _ = google.auth.default()
+adc_credentials_config = SpannerCredentialsConfig(credentials=_adc)
+
+# OAuth2 credentials for execute_gql_for_current_user (user sign-in)
+oauth_credentials_config = SpannerCredentialsConfig(
+    client_id=CLIENT_ID,
+    client_secret=CLIENT_SECRET,
+    scopes=[
+        "https://www.googleapis.com/auth/cloud-platform",
+        "https://www.googleapis.com/auth/userinfo.email",
+        "https://www.googleapis.com/auth/userinfo.profile",
+        "openid",
+    ],
+)
 
 if SPANNER_DISABLE_BUILTIN_METRICS:
     os.environ["SPANNER_DISABLE_BUILTIN_METRICS"] = "true"
 
-spanner_client = spanner.Client(
+# SpannerGraphStore used only for schema introspection at startup
+_schema_client = spanner.Client(
     project=GOOGLE_CLOUD_PROJECT,
-    credentials=credentials,
+    credentials=_adc,
     disable_builtin_metrics=SPANNER_DISABLE_BUILTIN_METRICS,
 )
-
-# Connect to Spanner
-graph_store = SpannerGraphStore(
+_schema_store = SpannerGraphStore(
     instance_id=SPANNER_INSTANCE_ID,
     database_id=SPANNER_DATABASE_ID,
     graph_name=SPANNER_GRAPH_NAME,
-    client=spanner_client
+    client=_schema_client,
 )
-physical_schema = graph_store.get_schema
+physical_schema = _schema_store.get_schema
 
 
-def _run_gql_query(query: str) -> dict:
+def _run_gql_query(query: str, credentials: BaseCredentials, settings: SpannerToolSettings, tool_context: ToolContext) -> dict:
     logger.info(f">>> 🛠️ Tool: Query sent to Spanner Graph:\n{query}")
-    results = graph_store.query(query)
-    if not results:
-        return {"status": "success", "result": "Query returned no rows."}
-
-    return {"status": "success", "result": json.dumps(results, indent=2)}
+    return spanner_utils.execute_sql(
+        project_id=GOOGLE_CLOUD_PROJECT,
+        instance_id=SPANNER_INSTANCE_ID,
+        database_id=SPANNER_DATABASE_ID,
+        query=query,
+        credentials=credentials,
+        settings=settings,
+        tool_context=tool_context,
+    )
 
 # ==========================================
 # 3. DEFINE THE TOOL
 # ==========================================
-def execute_gql(query: str) -> dict:
+def execute_gql(query: str, credentials: BaseCredentials, settings: SpannerToolSettings, tool_context: ToolContext) -> dict:
     """
     Executes a Spanner GQL query against the database.
     Input must be a valid GQL string.
@@ -136,9 +154,7 @@ def execute_gql(query: str) -> dict:
     try:
         # --- 2. Query Execution ---
         # --- 3. Structured Result Formatting ---
-        # Return results as a JSON string for better machine readability by the LLM.
-        # This preserves the structure of the data (lists of dictionaries).
-        return _run_gql_query(query)
+        return _run_gql_query(query, credentials, settings, tool_context)
 
     # --- 4. Specific Error Handling ---
     # Catch specific API errors for more granular feedback.
@@ -166,54 +182,20 @@ def execute_gql(query: str) -> dict:
 # ==========================================
 # 4. DEFINE THE TOOL FOR USER INFO RETRIEVAL
 # ==========================================
-def _get_credentials_or_auth_request(
-    tool_context: ToolContext, pending_message: str
-) -> Tuple[Optional[Credentials], Optional[str]]:
-    """
-    A helper function to abstract the credential fetching logic.
-
-    It checks for necessary environment variables and then calls get_user_credentials.
-    It returns credentials on success, or an error/pending message on failure or if auth is needed.
-
-    Args:
-        tool_context: The context of the tool run.
-        pending_message: The message to return if authentication is required.
-
-    Returns:
-        A tuple containing Credentials and an optional message.
-        (Credentials, None) on success.
-        (None, message) on failure or if auth is pending.
-    """
-    logger.info("Attempting to retrieve user credentials for authentication...")
-
-    creds = get_user_credentials(
-        tool_context=tool_context,
-        credential_cache_key="graph_creds"
-    )
-
-    if isinstance(creds, AuthConfig) or creds is None:
-        return None, pending_message
-    
-    return creds, None
-
-def execute_gql_for_current_user(query: str, tool_context: ToolContext) -> dict:
+def execute_gql_for_current_user(
+    query: str,
+    credentials: BaseCredentials,  # GoogleTool injects OAuth2 user credentials
+    settings: SpannerToolSettings,  # GoogleTool injects
+    tool_context: ToolContext,       # GoogleTool injects
+) -> dict:
     """
     Runs a GQL query that is scoped to the signed-in user.
     The query must include the literal placeholder user_name,
     which will be replaced with the authenticated user's formatted name.
     """
-    creds, message = _get_credentials_or_auth_request(
-        tool_context,
-        "To proceed, sign in with your Google account first."
-    )
-    logger.info(f"Credentials obtained: {creds}, Message: {message}")
-    if message:
-        tool_context.actions.skip_summarization = True
-        return Part.from_text(text=message)
-    
-    # At this point, we have valid credentials. Make the API call.
+    # At this point, GoogleTool has already handled the OAuth2 flow.
     userinfo_endpoint = "https://www.googleapis.com/oauth2/v3/userinfo"
-    headers = {"Authorization": f"Bearer {creds.token}"}
+    headers = {"Authorization": f"Bearer {credentials.token}"}
     
     try:
         response = requests.get(userinfo_endpoint, headers=headers)
@@ -228,8 +210,6 @@ def execute_gql_for_current_user(query: str, tool_context: ToolContext) -> dict:
                 "message": "Unable to resolve user identity.",
             }
     
-        logger.info(f">>> 🛠️ Tool: Retrieved user info: {json.dumps(user_info)}")
-        
         user_name = user_info.get("name")
         logger.info(f">>> 🛠️ Tool: Extracted user name: {user_name}")
 
@@ -252,11 +232,11 @@ def execute_gql_for_current_user(query: str, tool_context: ToolContext) -> dict:
         resolved_query = query.replace(USER_NAME_PLACEHOLDER, safe_name)
 
         logger.info(f">>> 🛠️ Tool: Resolved GQL for current user:\n{resolved_query}")
-        return execute_gql(resolved_query)
+        return execute_gql(resolved_query, credentials, settings, tool_context)
 
     except requests.RequestException as e:
         logger.error(f">>> 🛠️ Tool: Failed to retrieve user info: {str(e)}")
-        return None
+        return {"status": "error", "message": f"Failed to retrieve user info: {str(e)}"}
 
 system_prompt = f"""
 You are TeamAgent, an expert HR and Staffing assistant.
@@ -291,5 +271,16 @@ root_agent = LlmAgent(
     model="gemini-2.5-pro",
     name="knowledge_graph_agent",
     instruction=system_prompt,
-    tools=[execute_gql, execute_gql_for_current_user]
+    tools=[
+        GoogleTool(
+            func=execute_gql,
+            credentials_config=adc_credentials_config,
+            tool_settings=tool_settings,
+        ),
+        GoogleTool(
+            func=execute_gql_for_current_user,
+            credentials_config=oauth_credentials_config,
+            tool_settings=tool_settings,
+        ),
+    ]
 )

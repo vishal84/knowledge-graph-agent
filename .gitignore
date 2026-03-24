@@ -32,6 +32,7 @@ build/
 
 # Environment variables
 .env
+env.yaml
 
 # Terraform
 *.tfvars
