@@ -1,370 +1,219 @@
-# Knowledge Graph Agent
+# Project Setup and Deployment Guide
 
-This repository contains two ADK agents:
+This repository contains an identity-aware AI agent that can be deployed in three different ways. This guide provides prescriptive, step-by-step instructions on how to configure your Google Cloud environment, set up the Spanner database, and deploy the application using any of the supported options.
 
-- `local`: a local knowledge graph agent that answers questions by generating and executing Spanner GQL queries against a Google Cloud Spanner graph.
-- `agent_engine`: an Agent Engine and Gemini Enterprise integration example that forwards end-user identity to an MCP server running on Cloud Run.
+## Table of Contents
+1. [Deployment Options](#deployment-options)
+2. [Prerequisites & Identity Setup](#prerequisites--identity-setup)
+3. [Database Setup (Cloud Spanner)](#database-setup-cloud-spanner)
+4. [Environment Configuration (.env files)](#environment-configuration-env-files)
+5. [Troubleshooting & Development Notes](#troubleshooting--development-notes)
 
-The primary runtime in this repo is the local knowledge graph agent. It uses ontology-aware prompting, a Spanner graph schema, and Google OAuth to answer both general graph questions and user-scoped questions such as "Who am I?" or "What skills do I have?"
+---
 
-## What The Local Agent Does
+## Deployment Options
 
-The local agent is defined in `local/agent.py` and exposes a single ADK `LlmAgent` named `knowledge_graph_agent`.
+You can run or deploy this agent in three different environments. Depending on your choice, you will need to configure the specific folder associated with that option.
 
-At startup it:
+### 1. Running Locally
+Ideal for development, testing, and rapid iteration.
+*   **Folder**: The repository root (or top-level project directory).
+*   **Instructions**: You will run the application server directly on your machine. It requires a connection to your Cloud Spanner instance in GCP.
+*   **Commands**:
+		*   **Node.js**:
+				```bash
+				npm install
+				npm start
+				```
+		*   **Python**:
+				```bash
+				pip install -r requirements.txt
+				python main.py
+				```
 
-1. Loads configuration from the repository-level `.env` file.
-2. Compiles the ontology in `ontology_file.ttl` into a concise prompt summary using `OntologyCompiler`.
-3. Authenticates to Google Cloud with Application Default Credentials for Spanner access.
-4. Connects to the configured Spanner graph through `langchain_google_spanner.SpannerGraphStore`.
-5. Reads the graph schema and injects both ontology and schema into the system prompt.
-6. Runs Gemini with two tools:
-	- `execute_gql`
-	- `execute_gql_for_current_user`
+### 2. Cloud Run
+Deploy the agent as a containerized service on Google Cloud Run. This provides scale-to-zero capabilities and a public HTTPS URL.
+*   **Folder**: `cloud_run/`
+*   **Instructions**: Build a Docker image and deploy it to Cloud Run.
+*   **Commands**:
+		```bash
+		cd cloud_run
+		gcloud run deploy adk-agent \
+			--source . \
+			--platform managed \
+			--region us-central1 \
+			--allow-unauthenticated \
+			--env-vars-file .env
+		```
+		*(Note: Adjust region and service name as needed. Ensure your `.env` file is present in the `cloud_run` directory or variables are set in GCP).*
 
-The result is an agent that can:
+### 3. Agent Engine
+Deploy the agent using the dedicated "Agent Engine" framework (e.g., Vertex AI Agents).
+*   **Folder**: `agent_engine/`
+*   **Instructions**: Use the specific deployment commands required by the platform.
+*   **Commands**:
+		```bash
+		cd agent_engine
+		# Example command for Vertex AI Agents
+		# gcloud beta ai agents create-deployment ...
+		# Or follow project-specific instructions if a custom tool is used.
+		```
+		*(Note: Since the specific Agent Engine tool is not defined in this repo, confirm the correct command for your environment).*
 
-- answer general graph questions by generating Spanner GQL,
-- validate and normalize generated GQL before execution,
-- handle self-referential requests using end-user OAuth,
-- resolve the signed-in user through the Google UserInfo API,
-- substitute that user into the final GQL query before execution.
+---
 
-## Repository Layout
+## Prerequisites & Identity Setup
 
-- `ontology_file.ttl`: ontology used to steer query generation.
-- `local/agent.py`: local Spanner graph agent and its tools.
-- `local/oauth_helper.py`: ADK OAuth helper for end-user sign-in.
-- `local/ontology_compiler.py`: ontology-to-markdown prompt compiler.
-- `agent_engine/agent.py`: Agent Engine example that injects end-user auth into an MCP tool call.
-- `agent_engine/create_auth_id.py`: registers a Gemini Enterprise server-side OAuth authorization.
-- `agent_engine/register_to_ge.py`: registers the deployed agent with Gemini Enterprise.
-- `pyproject.toml`: Python package metadata and dependencies.
+Before deploying or running the agent, you must set up your Google Cloud Project and configure End User Identity resolution. This is critical as the agent uses the signed-in user's identity to perform graph queries.
 
-## Prerequisites
+### 1. Google Cloud Project
+Ensure you have a Google Cloud Project created. You will need the **Project ID** for all subsequent steps.
 
-Before running the local agent, make sure you have:
+### 2. OAuth Consent Screen (End User Identity Setup)
+To enable the application to identify the user running queries, you must set up OAuth 2.0 consent.
 
-- Python 3.12 or newer.
-- `uv` installed.
-- Access to a Google Cloud project with:
-  - a Spanner instance,
-  - a Spanner database,
-  - a graph already created in that database,
-  - an OAuth 2.0 client ID and client secret.
-- Google Cloud Application Default Credentials configured locally.
+1.  In the Google Cloud Console, navigate to **APIS & Services** > **OAuth consent screen**.
+2.  Select **User Type**:
+		*   Choose **Internal** if you are in a Google Workspace organization and want to restrict access to users in your domain.
+		*   Choose **External** for testing with any Google account.
+3.  Click **Create**.
+4.  **App Information**: Fill in the App name, User support email, and Developer contact information.
+5.  **Scopes**: Click **Add or Remove Scopes**. You must add the following scopes to retrieve user profiles:
+		*   `auth/userinfo.email`
+		*   `auth/userinfo.profile`
+		*   `openid`
+6.  **Test Users**: If you selected "External" and the app is in "Testing" status, you *must* add the email addresses of any users (including yourself) who will test the app.
+7.  Save and continue to complete the setup.
 
-For ADC, run:
+### 3. Register Client Credentials
+After setting up the consent screen, you need to generate credentials to allow the application to authenticate with Google.
 
-```bash
-gcloud auth application-default login
-```
+1.  Go to **APIS & Services** > **Credentials**.
+2.  Click **Create Credentials** > **OAuth client ID**.
+3.  Select **Web application** as the application type.
+4.  **Name**: Enter a descriptive name (e.g., `Agent Local Client`).
+5.  **Authorized JavaScript origins**:
+		*   For local testing, add `http://localhost:<PORT>` (default port is often 8080).
+		*   For Cloud Run, add your Cloud Run service URL.
+6.  **Authorized redirect URIs**:
+		*   Add the callback URL where Google will send the auth code.
+		*   For local: `http://localhost:<PORT>/callback` (or the specific callback path your app uses).
+		*   For Cloud Run: `https://your-cloud-run-url/callback`.
+7.  Click **Create**.
+8.  > [!IMPORTANT]
+		> A dialog will appear showing your **Client ID** and **Client Secret**. Copy these values immediately. You will need them to populate the `.env` files in the next steps.
 
-The agent uses ADC for server-side access to Spanner. End-user sign-in for self-scoped queries uses a separate OAuth flow described below.
+---
 
-## Environment Variables
+## Database Setup (Cloud Spanner)
 
-Create a `.env` file in the repository root.
+This project requires a Cloud Spanner database instance to host the graph used by the agent. A script is provided in the `scripts/` folder to stage this database.
 
-Minimum variables required for the local agent:
+### Prerequisites
+Ensure the user or service account running the script has the following IAM roles:
+*   **Spanner Admin** (`roles/spanner.admin`) or **Owner** on the project to create instances and databases.
+
+### Steps to Setup Spanner:
+
+1.  Open your terminal and ensure you are authenticated with GCP and have selected the correct project:
+		```bash
+		gcloud auth login
+		gcloud config set project <YOUR_PROJECT_ID>
+		```
+2.  Navigate to the repository root.
+3.  Execute the setup script. This script will create a Spanner instance, a database, and apply the required DDL schema for the graph.
+
+		```bash
+		# Make the script executable
+		chmod +x scripts/setup_spanner.sh
+
+		# Run the script, passing your Project ID
+		./scripts/setup_spanner.sh <YOUR_PROJECT_ID>
+		```
+
+4.  **Verify**: Check the Google Cloud Console under Spanner to ensure the instance and database (with tables) were created successfully.
+
+---
+
+## Environment Configuration (.env files)
+
+To run or deploy the sample, you **must** create and populate a `.env` file in the folder corresponding to your chosen deployment option. The application relies on these variables to connect to Spanner and authenticate users.
+
+### The .env Template
+
+Create a `.env` file with the following structure:
 
 ```env
-GOOGLE_CLOUD_PROJECT=your-project-id
-SPANNER_INSTANCE_ID=your-spanner-instance
-SPANNER_DATABASE_ID=your-spanner-database
-SPANNER_GRAPH_NAME=your-graph-name
+# Google Cloud Configuration
+GCP_PROJECT_ID=your-gcp-project-id
+SPANNER_INSTANCE_ID=your-spanner-instance-id
+SPANNER_DATABASE_ID=your-spanner-database-id
+SPANNER_GRAPH_NAME=your-spanner-graph-name
 
-CLIENT_ID=your-oauth-client-id.apps.googleusercontent.com
-CLIENT_SECRET=your-oauth-client-secret
+# OAuth Credentials for End User Identity
+OAUTH_CLIENT_ID=your-oauth-client-id.apps.googleusercontent.com
+OAUTH_CLIENT_SECRET=your-oauth-client-secret
 
-# Optional
-SPANNER_DISABLE_BUILTIN_METRICS=true
+# Application Settings
+PORT=8080
 ```
 
-Additional variables used by the Agent Engine and Gemini Enterprise example:
-
-```env
-AUTH_ID=user-info-auth
-AUTH_URI=https://accounts.google.com/o/oauth2/auth
-TOKEN_URI=https://oauth2.googleapis.com/token
-GOOGLE_CLOUD_PROJECT_NUMBER=your-project-number
-AGENT_ENGINE_ID=projects/PROJECT/locations/LOCATION/reasoningEngines/ID
-GEMINI_ENTERPRISE_APP_ID=your-gemini-enterprise-app-id
-MCP_SERVER_URL=https://your-cloud-run-mcp-service
-```
-
-## Google Cloud OAuth Setup
-
-Create an OAuth 2.0 client in your Google Cloud project and configure the redirect URI used by the local ADK web UI:
-
-```text
-http://127.0.0.1:8000/dev-ui/
-```
-
-The local OAuth helper requests these scopes:
-
-- `https://www.googleapis.com/auth/cloud-platform`
-- `https://www.googleapis.com/auth/userinfo.email`
-- `https://www.googleapis.com/auth/userinfo.profile`
-- `openid`
-
-Do not commit your `.env` file or client secret.
-
-## How To Run The Local Agent
-
-### 1. Install dependencies
-
-From the repository root:
-
-```bash
-uv sync
-```
-
-### 2. Start the ADK web UI
-
-From the repository root:
-
-```bash
-uv run adk web .
-```
-
-Why this command works:
-
-- `adk web` expects an agents directory.
-- the repository root contains agent subdirectories with `__init__.py` and `agent.py`.
-- `local` is one of those agent directories.
-
-Then open:
-
-```text
-http://127.0.0.1:8000
-```
-
-In the ADK UI, select the `local` agent.
-
-### 3. Optional: run in terminal-only mode
-
-If you want the interactive CLI instead of the web UI:
-
-```bash
-uv run adk run local
-```
-
-Use the web UI if you plan to test end-user OAuth, because the redirect URI in the code is tied to the local ADK web interface.
-
-## How The Local Agent Answers Questions
-
-The local agent uses a prompt built from three inputs:
-
-1. Ontology summary from `ontology_file.ttl`
-2. Physical schema from `SpannerGraphStore.get_schema`
-3. Hard rules embedded in the system prompt in `local/agent.py`
-
-Important prompt rules enforced by the agent:
-
-- queries must target the configured Spanner graph,
-- self-referential questions must use the user-scoped tool,
-- `COLLECT(...)` must not be used because Spanner GQL does not support it,
-- if a query fails, the model should rewrite and retry.
-
-## Tool And Function Flow
-
-### `execute_gql(query: str)`
-
-This is the primary database execution tool for non-user-specific questions.
-
-It performs the following work:
-
-1. Verifies that `SPANNER_GRAPH_NAME` is configured.
-2. Normalizes the query string.
-3. Rewrites unsupported `COLLECT(...)` expressions into scalar output expressions.
-4. Validates that the query starts with `GRAPH <graph_name> MATCH ...`.
-5. Auto-prefixes the graph name if the model emits a bare `MATCH ...` query.
-6. Executes the query through `_run_gql_query()`.
-7. Returns structured JSON text or a detailed error.
-
-Supporting function:
-
-- `_run_gql_query(query: str)`: sends the final GQL to `graph_store.query()` and formats the rows as JSON.
-
-### `execute_gql_for_current_user(query: str, tool_context: ToolContext)`
-
-This tool handles self-referential questions such as:
-
-- "Who am I?"
-- "What skills do I have?"
-- "What team am I on?"
-
-It performs the following work:
-
-1. Calls `_get_credentials_or_auth_request(...)`.
-2. That helper calls `get_user_credentials(...)` in `local/oauth_helper.py`.
-3. If the user is not signed in yet, ADK initiates the OAuth flow and the tool returns a pending sign-in message.
-4. If credentials are available, the tool calls the Google UserInfo API:
-
-	```text
-	https://www.googleapis.com/oauth2/v3/userinfo
-	```
-
-5. It extracts the `name` field from the user profile.
-6. It requires the generated query to contain the literal placeholder `user_name`.
-7. It substitutes the signed-in user's display name into the GQL.
-8. It delegates execution to `execute_gql(...)`.
-
-This repo uses Spanner GQL, not GraphQL. When the code substitutes end-user identity into the query, it substitutes into a Spanner GQL statement before sending that statement to Spanner.
-
-## How OAuth Works For End-User Context
-
-The local end-user auth flow is implemented in `local/oauth_helper.py`.
-
-### Credential lifecycle
-
-`get_user_credentials(...)` checks credentials in this order:
-
-1. Cached credentials from `tool_context.state`
-2. Refresh of expired credentials if a refresh token exists
-3. Pending auth response via `tool_context.get_auth_response(...)`
-4. Fresh login prompt via `tool_context.request_credential(...)`
-
-### ADK auth configuration
-
-The helper builds an `AuthConfig` with:
-
-- Google OAuth authorization endpoint
-- Google token endpoint
-- the local ADK redirect URI
-- your `CLIENT_ID`
-- your `CLIENT_SECRET`
-
-It uses `raw_auth_credential` with an OpenID Connect credential, which matches current ADK expectations.
-
-### Session storage
-
-After a successful login, the helper converts the returned auth response into `google.oauth2.credentials.Credentials` and stores the serialized credential JSON in `tool_context.state` under the cache key `graph_creds`.
-
-That means the user usually only needs to sign in once per session unless the token expires and cannot be refreshed.
-
-## How UserInfo Is Applied To The Query
-
-For end-user context, the agent prompt instructs the model to generate GQL using the placeholder `user_name` wherever the graph needs a person's formatted name.
-
-Example pattern from the prompt:
-
-```text
-GRAPH <graph_name> MATCH (p:Person)
-WHERE p.formattedName LIKE '%user_name%'
-RETURN p
-```
-
-At runtime:
-
-1. the user signs in,
-2. `execute_gql_for_current_user(...)` calls the UserInfo API,
-3. the code reads `user_info["name"]`,
-4. the code escapes single quotes,
-5. `user_name` is replaced with the authenticated user's formatted name,
-6. the resolved query is sent to Spanner.
-
-In other words, the end user's Google profile becomes the bridge between the OAuth login and the graph lookup on `Person.formattedName`.
-
-## Example User Flows
-
-### General graph question
-
-User asks:
-
-```text
-Which people have Java skills?
-```
-
-Expected execution path:
-
-- the model generates Spanner GQL,
-- `execute_gql(...)` validates and runs it,
-- the agent summarizes the returned rows.
-
-### Self-referential question
-
-User asks:
-
-```text
-What skills do I have?
-```
-
-Expected execution path:
-
-- the model uses `execute_gql_for_current_user(...)`,
-- ADK prompts the user to log in if needed,
-- the tool fetches the user's profile from Google UserInfo,
-- the placeholder `user_name` is replaced,
-- the final Spanner GQL is executed,
-- the agent responds with the signed-in user's graph data.
-
-## Agent Engine And Gemini Enterprise Flow
-
-The `agent_engine` folder contains a separate integration example.
-
-That flow is different from the local Spanner graph agent:
-
-- it uses an MCP toolset instead of direct Spanner access,
-- it injects an end-user access token into MCP requests,
-- it is intended for Agent Engine and Gemini Enterprise registration.
-
-Key files:
-
-- `agent_engine/create_auth_id.py`: creates a Gemini Enterprise authorization resource for server-side OAuth.
-- `agent_engine/register_to_ge.py`: registers the provisioned reasoning engine as an agent in Gemini Enterprise.
-- `agent_engine/agent.py`: injects end-user tokens into MCP calls through `dynamic_token_injection(...)` and `mcp_header_provider(...)`.
-
-## Troubleshooting
-
-### OAuth redirect does not complete
-
-Check that your Google OAuth client includes:
-
-```text
-http://127.0.0.1:8000/dev-ui/
-```
-
-as an authorized redirect URI.
-
-### Spanner query fails immediately
-
-Check the following values in `.env`:
-
-- `GOOGLE_CLOUD_PROJECT`
-- `SPANNER_INSTANCE_ID`
-- `SPANNER_DATABASE_ID`
-- `SPANNER_GRAPH_NAME`
-
-Also verify that your ADC identity has permission to query the Spanner database.
-
-### End-user question does not resolve identity
-
-The local tool expects the Google UserInfo API response to contain a `name` field. That value is mapped to `Person.formattedName` in the graph query.
-
-If your graph stores identity under a different field or naming convention, update either:
-
-- the query prompt instructions in `local/agent.py`, or
-- the runtime substitution logic in `execute_gql_for_current_user(...)`.
-
-### The model generates `COLLECT(...)`
-
-Spanner GQL does not support `COLLECT(...)`. The tool attempts to rewrite it automatically, but the prompt already instructs the model to return scalar rows and aggregate in natural language instead.
-
-## Development Notes
-
-- The local agent loads `.env` from the repository root.
-- Both the ontology and the physical schema are included directly in the system prompt.
-- The self-referential path depends on Google OAuth and the UserInfo API, not on ADC.
-- Spanner access itself depends on ADC, not the end-user OAuth token.
-
-## Summary
-
-This repo demonstrates a practical pattern for identity-aware graph querying:
-
-- use ADC for backend access to Google Cloud Spanner,
-- use ADK OAuth for end-user sign-in,
-- call the Google UserInfo API after login,
-- map the signed-in user's profile to a graph field,
-- execute the resulting Spanner GQL with the local knowledge graph agent.
+### Where to put the .env files:
+
+1.  **For Local Execution**:
+		*   Place the `.env` file in the **root directory** of the repository.
+2.  **For Cloud Run**:
+		*   Place the `.env` file in the `cloud_run/` folder.
+		*   *Alternative*: You can also set these variables directly in the Cloud Run Console under the service configuration instead of using a file.
+3.  **For Agent Engine**:
+		*   Place the `.env` file in the `agent_engine/` folder.
+
+Fill in the values you gathered during the **Prerequisites** (OAuth Client ID/Secret) and **Database Setup** (Project ID, Spanner IDs).
+
+---
+
+## Running the Agent
+
+Once configured, you can run the agent based on your deployment choice:
+
+### Local
+1. Ensure `.env` is in the root directory.
+2. Run the start command:
+	 ```bash
+	 # For Node.js
+	 npm start
+	 
+	 # For Python
+	 python main.py
+	 ```
+
+### Cloud Run
+1. Ensure `.env` is in the `cloud_run/` directory or variables are set in Cloud Run.
+2. Deploy using the command shown in [Deployment Options](#2-cloud-run).
+3. Access the service via the URL provided by Cloud Run.
+
+### Agent Engine
+1. Ensure `.env` is in the `agent_engine/` directory.
+2. Run the specific deployment command or start command for your Agent Engine setup.
+
+---
+
+## Troubleshooting & Development Notes
+
+### Identity Resolution
+*   **Mapping**: The application expects the Google UserInfo API response to contain a `name` or `email` field to identify the user. This value is typically mapped to a specific node property in your Spanner graph (e.g., `Person.email` or `Person.formattedName`).
+*   If your graph schema uses different field names, you may need to update the query logic in the source code to match your schema.
+
+### Spanner Permissions
+*   Ensure the account running the application (or the service account used by Cloud Run) has the **Spanner Database User** (`roles/spanner.databaseUser`) role or equivalent permissions to read/write to the database.
+
+### Common Issues
+
+*   **OAuth Redirect URI Mismatch**:
+		*   *Error*: "Error: redirect_uri_mismatch" when signing in.
+		*   *Solution*: Ensure the URL in your browser matches exactly what is registered in the GCP Console under "Authorized redirect URIs" for your Client ID. Check trailing slashes and HTTP vs HTTPS.
+*   **Spanner Graph Queries Fail**:
+		*   *Error*: No data returned or permission denied.
+		*   *Solution*: Verify that the signed-in user's email exists in the Spanner graph as a node with the correct property mapping. Also verify the service account has permissions.
+*   **Missing Environment Variables**:
+		*   Ensure all variables in the `.env` file are populated correctly. Empty values or typos in variable names will cause connection failures.
